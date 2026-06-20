@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SYANATY – Smart Car Maintenance</title>
+
+<!-- ═══ PWA / iOS META ═══ -->
+<meta name="application-name" content="SYANATY">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SYANATY">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#080B14">
+<meta name="description" content="Smart Car Maintenance Tracker">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app">
+
+<!-- ══ LOGIN ══ -->
+<div id="loginScreen">
+  <div class="login-emblem">🚗</div>
+  <div class="login-wordmark">SYANATY</div>
+  <div class="login-tagline">Smart Car Maintenance</div>
+  <div class="login-card">
+    <div class="l-title">Welcome</div>
+    <div class="l-sub">Enter your details to continue</div>
+    <label class="f-label">Phone or Email</label>
+    <input class="f-input" id="loginInput" type="text" placeholder="+20 10x xxxx xxxx" autocomplete="off">
+    <label class="f-label">Your Name</label>
+    <input class="f-input" id="nameInput" type="text" placeholder="e.g. Ahmed">
+    <button class="btn-gold" onclick="handleLogin()">Get Started →</button>
+  </div>
+  <div class="l-footer">Your data stays on your device · No account needed</div>
+</div>
+
+<!-- ══ MAIN APP ══ -->
+<div id="mainApp" style="display:none;flex-direction:column;height:100%;position:relative;overflow:hidden;">
+
+  <div id="header">
+    <div class="hdr-brand">
+      <div class="hdr-icon">🚗</div>
+      <div class="hdr-name">SYANATY</div>
+    </div>
+    <div class="hdr-car">
+      <div class="hdr-car-name" id="headerCarName">My Car</div>
+      <div class="hdr-odo">📍 <span id="headerOdo">0</span> km</div>
+    </div>
+    <div class="hdr-actions">
+      <button class="icon-btn" title="Update Odometer" onclick="openModal('odoModal')">🔢</button>
+      <button class="icon-btn" title="Toggle Theme" id="darkToggle" onclick="toggleDark()">☀️</button>
+    </div>
+  </div>
+
+  <div id="screens">
+
+    <!-- GARAGE -->
+    <div class="screen active" id="garageScreen">
+      <div id="carCardContainer"></div>
+      <div class="stats-grid" id="statsGrid"></div>
+      <button class="add-car-btn" onclick="showToast('Multi-vehicle support coming soon!','info')">
+        ＋ Add Another Vehicle
+      </button>
+    </div>
+
+    <!-- CATALOG -->
+    <div class="screen" id="catalogScreen">
+      <div class="cat-header">
+        <div>
+          <div class="pg-title">Parts Catalog</div>
+          <div class="pg-sub">Replacement interval tracking</div>
+        </div>
+        <button class="dev-btn" onclick="openDevPassword()">🛠️</button>
+      </div>
+      <div class="notice-banner">
+        <span style="font-size:15px;flex-shrink:0;margin-top:1px">⚠️</span>
+        <span>Egypt conditions — heat, dust, congestion — may reduce service intervals by up to 20%. Consider earlier replacements.</span>
+      </div>
+      <div id="partsList"></div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="screen" id="historyScreen">
+      <div class="pg-title">Maintenance History</div>
+      <div class="pg-sub">Full service record</div>
+      <button class="urgent-add-btn" onclick="openModal('urgentModal')">🚨 Add Urgent Record</button>
+      <div class="filter-row">
+        <button class="filter-btn active" id="filterAll"    onclick="setFilter('all')">All Records</button>
+        <button class="filter-btn"        id="filterUrgent" onclick="setFilter('urgent')">Urgent Only</button>
+      </div>
+      <button class="export-btn" onclick="exportPDF()">📄 Export PDF Report</button>
+      <div class="timeline" id="historyTimeline"></div>
+    </div>
+
+    <!-- EXPENSES -->
+    <div class="screen" id="expensesScreen">
+      <div class="pg-title">Expense Tracker</div>
+      <div class="pg-sub">Monthly spending overview</div>
+      <select class="month-sel" id="monthSelector" onchange="renderExpenses()"></select>
+      <div class="exp-cards">
+        <div class="exp-card fuel">
+          <div class="exp-icon">⛽</div>
+          <div class="exp-amt" id="fuelTotal">0</div>
+          <div class="exp-lbl">Fuel · EGP</div>
+        </div>
+        <div class="exp-card maint">
+          <div class="exp-icon">🔧</div>
+          <div class="exp-amt" id="maintTotal">0</div>
+          <div class="exp-lbl">Service · EGP</div>
+        </div>
+      </div>
+      <div class="total-card">
+        <div class="total-lbl">Total This Month</div>
+        <div class="total-amt" id="monthTotal">0 EGP</div>
+      </div>
+      <button class="add-exp-btn" onclick="openModal('fuelModal')">⛽ Add Fuel Expense</button>
+      <div class="txn-list" id="transactionList"></div>
+    </div>
+
+    <!-- PART DETAIL -->
+    <div class="screen" id="partDetailScreen">
+      <button class="back-btn" onclick="closePartDetail()">← Back to Catalog</button>
+      <div class="pg-title" id="detailPartName"></div>
+      <div class="detail-circ" id="detailCircle"></div>
+      <div class="detail-grid" id="detailGrid"></div>
+      <div class="tips-box" id="detailTips"></div>
+      <div style="margin-top:14px">
+        <button class="replace-btn" id="detailReplaceBtn" style="margin-left:0;font-size:14px;padding:14px">✅ Mark as Replaced</button>
+      </div>
+    </div>
+
+  </div><!-- /screens -->
+
+  <div id="bottomNav">
+    <button class="nav-tab active" data-tab="garageScreen"  onclick="switchTab('garageScreen',this)">
+      <span class="nav-icon">🏠</span><span class="nav-lbl">Garage</span>
+    </button>
+    <button class="nav-tab" data-tab="catalogScreen" onclick="switchTab('catalogScreen',this)">
+      <span class="nav-icon">📋</span><span class="nav-lbl">Catalog</span>
+    </button>
+    <button class="nav-tab" data-tab="historyScreen" onclick="switchTab('historyScreen',this)">
+      <span class="nav-icon">🕐</span><span class="nav-lbl">History</span>
+    </button>
+    <button class="nav-tab" data-tab="expensesScreen" onclick="switchTab('expensesScreen',this)">
+      <span class="nav-icon">💰</span><span class="nav-lbl">Expenses</span>
+    </button>
+  </div>
+
+</div><!-- /mainApp -->
+</div><!-- /app -->
+
+
+<div id="toast"></div>
+
+<!-- CONFIRM -->
+<div class="conf-ov" id="confirmOverlay">
+  <div class="conf-box">
+    <div class="conf-icon" id="confirmIcon">⚠️</div>
+    <div class="conf-title" id="confirmTitle">Are you sure?</div>
+    <div class="conf-msg"   id="confirmMsg">This action cannot be undone.</div>
+    <div class="conf-acts">
+      <button class="btn-ms" style="flex:1" onclick="closeConfirm()">Cancel</button>
+      <button class="btn-mp red" style="flex:1" id="confirmOkBtn">Delete</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- MODAL: Edit Car -->
+<div class="modal-ov" id="carModal"><div class="modal">
+  <span class="modal-handle"></span>
+  <div class="modal-title">Edit Vehicle</div>
+  <div class="modal-field"><label>Vehicle Name</label><input class="modal-input" id="editCarName" placeholder="e.g. My Peugeot 208"></div>
+  <div class="modal-field"><label>Year</label><input class="modal-input" id="editCarYear" type="number" placeholder="2020"></div>
+  <div class="modal-field">
+    <label>Vehicle Icon</label>
+    <div style="display:flex;align-items:center;gap:14px;margin-top:6px">
+      <span id="selectedEmoji" style="font-size:34px">🚗</span>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        ${['🚗','🚙','🚕','🏎️','🚐','🚌','🛻','🚓'].map(e=>`<button onclick="selectEmoji('${e}')" style="font-size:24px;background:none;border:none;cursor:pointer;transition:transform .15s" onmouseover="this.style.transform='scale(1.3)'" onmouseout="this.style.transform='scale(1)'">${e}</button>`).join('')}
+      </div>
+    </div>
+  </div>
+  <div class="modal-actions">
+    <button class="btn-ms" onclick="closeModal('carModal')">Cancel</button>
+    <button class="btn-mp" onclick="saveCarDetails()">Save Changes</button>
+  </div>
+</div></div>
+
+<!-- MODAL: Odometer -->
+<div class="modal-ov" id="odoModal"><div class="modal">
+  <span class="modal-handle"></span>
+  <div class="modal-title">Update Odometer</div>
+  <div class="modal-field"><label>Current Reading (km)</label><input class="modal-input" id="newOdo" type="number" placeholder="e.g. 45000"></div>
+  <div class="modal-actions">
+    <button class="btn-ms" onclick="closeModal('odoModal')">Cancel</button>
+    <button class="btn-mp" onclick="updateOdometer()">Update</button>
+  </div>
+</div></div>
+
+<!-- MODAL: Replace -->
+<div class="modal-ov" id="replaceModal"><div class="modal">
+  <span class="modal-handle"></span>
+  <div class="modal-title">Mark as Replaced</div>
+  <div style="background:var(--gold-a);border:1px solid var(--gold-b);border-radius:var(--r-xs);padding:12px 14px;margin-bottom:18px;font-size:13px;color:var(--gold2);font-weight:600" id="replacePartName"></div>
+  <div class="modal-field"><label>Replacement Date</label><input class="modal-input" id="replaceDate" type="date"></div>
+  <div class="modal-field"><label>Odometer at Replacement (km)</label><input class="modal-input" id="replaceKM" type="number"></div>
+  <div class="modal-field"><label>Cost (EGP)</label><input class="modal-input" id="replaceCost" type="number" placeholder="e.g. 350"></div>
+  <div class="modal-actions">
+    <button class="btn-ms" onclick="closeModal('replaceModal')">Cancel</button>
+    <button class="btn-mp" onclick="confirmReplacement()">✅ Confirm</button>
+  </div>
+</div></div>
+
+<!-- MODAL: Dev Password -->
+<div class="modal-ov" id="devPwModal"><div class="modal">
+  <span class="modal-handle"></span>
+  <div class="modal-title">🛠️ Developer Access</div>
+  <div class="modal-field"><label>Password</label><input class="modal-input" id="devPwInput" type="password" placeholder="Enter password"></div>
+  <div class="modal-actions">
+    <button class="btn-ms" onclick="closeModal('devPwModal')">Cancel</button>
+    <button class="btn-mp" onclick="checkDevPassword()">Unlock</button>
+  </div>
+</div></div>
+
+<!-- MODAL: Dev Panel -->
+<div class="modal-ov" id="devModal"><div class="modal">
+  <span class="modal-handle"></span>
+  <div class="dev-ph">
+    <div class="modal-title" style="margin-bottom:0">🛠️ Developer Panel</div>
+    <button class="icon-btn" onclick="closeModal('devModal')">✕</button>
+  </div>
+  <div id="devPartsList"></div>
+  <div class="add-part-sec">
+    <h3>Add New Part</h3>
+    <div class="modal-field"><label>Part Name</label><input class="modal-input" id="newPartName" placeholder="e.g. Cabin Air Filter"></div>
+    <div class="modal-field"><label>Interval (km)</label><input class="modal-input" id="newPartKM" type="number" placeholder="15000"></div>
+    <div class="modal-field"><label>Interval (months)</label><input class="modal-input" id="newPartMonths" type="number" placeholder="12"></div>
+    <div class="modal-field"><label>Cost (EGP)</label><input class="modal-input" id="newPartCost" type="number" placeholder="200"></div>
+    <button class="btn-mp" style="width:100%" onclick="addNewPart()">Add Part</button>
+  </div>
+</div></div>
+
+<!-- MODAL: Edit Part -->
+<div class="modal-ov" id="editPartModal"><div class="modal">
+  <span class="modal-handle"></span>
+  <div class="modal-title">Edit Part</div>
+  <input type="hidden" id="editPartId">
+  <div class="modal-field"><label>Part Name</label><input class="modal-input" id="editPartName"></div>
+  <div class="modal-field"><label>Interval (km)</label><input class="modal-input" id="editPartKM" type="number"></div>
+  <div class="modal-field"><label>Interval (months)</label><input class="modal-input" id="editPartMonths" type="number"></div>
+  <div class="modal-field"><label>Last Replaced KM</label><input class="modal-input" id="editPartLastKM" type="number"></div>
+  <div class="modal-field"><label>Last Replaced Date</label><input class="modal-input" id="editPartLastDate" type="date"></div>
+  <div class="modal-field"><label>Cost (EGP)</label><input class="modal-input" id="editPartCost" type="number"></div>
+  <div class="modal-actions">
+    <button class="btn-ms" onclick="closeModal('editPartModal')">Cancel</button>
+    <button class="btn-mp" onclick="savePartEdit()">Save</button>
+  </div>
+</div></div>
+
+<!-- MODAL: Urgent -->
+<div class="modal-ov" id="urgentModal"><div class="modal">
+  <span class="modal-handle"></span>
+  <div class="modal-title">🚨 Urgent Record</div>
+  <div class="modal-field"><label>Service / Issue</label><input class="modal-input" id="urgentService" placeholder="e.g. Brake failure repair"></div>
+  <div class="modal-field"><label>Date</label><input class="modal-input" id="urgentDate" type="date"></div>
+  <div class="modal-field"><label>Odometer (km)</label><input class="modal-input" id="urgentMileage" type="number"></div>
+  <div class="modal-field"><label>Cost (EGP)</label><input class="modal-input" id="urgentCost" type="number"></div>
+  <div class="modal-actions">
+    <button class="btn-ms" onclick="closeModal('urgentModal')">Cancel</button>
+    <button class="btn-mp red" onclick="saveUrgentRecord()">Add Record</button>
+  </div>
+</div></div>
+
+<!-- MODAL: Edit History -->
+<div class="modal-ov" id="editHistoryModal"><div class="modal">
+  <span class="modal-handle"></span>
+  <div class="modal-title">Edit Record</div>
+  <input type="hidden" id="editHistoryId">
+  <div class="modal-field"><label>Service</label><input class="modal-input" id="editHistoryService"></div>
+  <div class="modal-field"><label>Date</label><input class="modal-input" id="editHistoryDate" type="date"></div>
+  <div class="modal-field"><label>Odometer (km)</label><input class="modal-input" id="editHistoryMileage" type="number"></div>
+  <div class="modal-field"><label>Cost (EGP)</label><input class="modal-input" id="editHistoryCost" type="number"></div>
+  <div class="modal-actions">
+    <button class="btn-ms" onclick="closeModal('editHistoryModal')">Cancel</button>
+    <button class="btn-mp" onclick="saveHistoryEdit()">Save Changes</button>
+  </div>
+</div></div>
+
+<!-- MODAL: Parts Alert -->
+<div class="modal-ov" id="partsAlertModal"><div class="modal">
+  <span class="modal-handle"></span>
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+    <span id="partsAlertIcon" style="font-size:26px"></span>
+    <div class="modal-title" style="margin-bottom:0" id="partsAlertTitle"></div>
+  </div>
+  <div id="partsAlertList"></div>
+  <div style="margin-top:16px">
+    <button class="btn-mp" onclick="closeModal('partsAlertModal');switchTab('catalogScreen',document.querySelector('[data-tab=catalogScreen]'))">View Full Catalog →</button>
+  </div>
+</div></div>
+
+<!-- MODAL: Fuel -->
+<div class="modal-ov" id="fuelModal"><div class="modal">
+  <span class="modal-handle"></span>
+  <div class="modal-title">⛽ Add Fuel Expense</div>
+  <div class="modal-field"><label>Amount (EGP)</label><input class="modal-input" id="fuelAmount" type="number" placeholder="e.g. 500"></div>
+  <div class="modal-field"><label>Note</label><input class="modal-input" id="fuelNote" placeholder="e.g. Full tank"></div>
+  <div class="modal-field"><label>Date</label><input class="modal-input" id="fuelDate" type="date"></div>
+  <div class="modal-actions">
+    <button class="btn-ms" onclick="closeModal('fuelModal')">Cancel</button>
+    <button class="btn-mp grn" onclick="saveFuelExpense()">Add Expense</button>
+  </div>
+</div></div>
+
+<script>
+// ══════════════════════════════════════════
+//  DATA
+// ══════════════════════════════════════════
+const DEFAULT_PARTS = [
+  {id:'p1', name:'Engine Oil',           intervalKM:5000,  intervalMonths:3,  lastReplacedKM:0, lastReplacedDate:ds(-60),  costNew:350},
+  {id:'p2', name:'Oil Filter',           intervalKM:5000,  intervalMonths:3,  lastReplacedKM:0, lastReplacedDate:ds(-60),  costNew:80},
+  {id:'p3', name:'Air Filter',           intervalKM:15000, intervalMonths:12, lastReplacedKM:0, lastReplacedDate:ds(-180), costNew:150},
+  {id:'p4', name:'Cabin Air Filter',     intervalKM:15000, intervalMonths:12, lastReplacedKM:0, lastReplacedDate:ds(-200), costNew:120},
+  {id:'p5', name:'Spark Plugs',          intervalKM:30000, intervalMonths:24, lastReplacedKM:0, lastReplacedDate:ds(-400), costNew:600},
+  {id:'p6', name:'Brake Pads (Front)',   intervalKM:30000, intervalMonths:24, lastReplacedKM:0, lastReplacedDate:ds(-300), costNew:800},
+  {id:'p7', name:'Brake Pads (Rear)',    intervalKM:50000, intervalMonths:36, lastReplacedKM:0, lastReplacedDate:ds(-365), costNew:600},
+  {id:'p8', name:'Timing Belt',          intervalKM:60000, intervalMonths:48, lastReplacedKM:0, lastReplacedDate:ds(-500), costNew:2500},
+  {id:'p9', name:'Coolant',             intervalKM:40000, intervalMonths:24, lastReplacedKM:0, lastReplacedDate:ds(-250), costNew:400},
+  {id:'p10',name:'Transmission Fluid',   intervalKM:60000, intervalMonths:48, lastReplacedKM:0, lastReplacedDate:ds(-600), costNew:900},
+  {id:'p11',name:'Brake Fluid',          intervalKM:40000, intervalMonths:24, lastReplacedKM:0, lastReplacedDate:ds(-300), costNew:250},
+  {id:'p12',name:'Battery',              intervalKM:80000, intervalMonths:48, lastReplacedKM:0, lastReplacedDate:ds(-200), costNew:3000},
+  {id:'p13',name:'Tire Rotation',        intervalKM:10000, intervalMonths:6,  lastReplacedKM:0, lastReplacedDate:ds(-90),  costNew:200},
+  {id:'p14',name:'Wipers',              intervalKM:20000, intervalMonths:12, lastReplacedKM:0, lastReplacedDate:ds(-180), costNew:200},
+  {id:'p15',name:'Power Steering Fluid', intervalKM:50000, intervalMonths:36, lastReplacedKM:0, lastReplacedDate:ds(-400), costNew:300},
+];
+
+const TIPS = {
+  'Engine Oil':          ['Change oil every 5,000 km in Egyptian climate — heat degrades oil faster.','Use full-synthetic for better protection at high temperatures.','Check oil level monthly between changes.'],
+  'Oil Filter':          ['Always replace the oil filter with every oil change.','A clogged filter reduces engine protection significantly.','Use OEM or quality aftermarket filters.'],
+  'Air Filter':          ['Dusty Cairo roads clog filters faster — inspect every 5,000 km.','A dirty filter reduces fuel efficiency by up to 10%.','Tap gently to remove loose dust between changes.'],
+  'Brake Pads (Front)':  ['Squealing sounds mean brake pads need inspection immediately.','City traffic causes faster brake wear than highway driving.','Always replace front pads as a pair.'],
+  'Brake Pads (Rear)':   ['Monitor rear pads alongside front — replace as sets where possible.','Softer rear pads degrade faster with heavy loads.'],
+  'Spark Plugs':         ['Worn plugs cause rough idling and poor fuel economy.','Iridium plugs last significantly longer than standard copper.','Check plug condition during every major tune-up.'],
+  'Battery':             ['Extreme summer heat reduces battery life significantly.','Clean terminal corrosion with a baking soda solution.','Test battery health annually after the second year.'],
+  'Timing Belt':         ['Never delay timing belt replacement — failure destroys the engine.','Always replace the water pump and tensioner at the same time.','Record the exact mileage and date of every replacement.'],
+};
+
+function ds(offset=0) {
+  const d=new Date(); d.setDate(d.getDate()+offset);
+  return d.toISOString().split('T')[0];
+}
+function load(k,def){ try{const v=localStorage.getItem(k);return v?JSON.parse(v):def}catch{return def} }
+function save(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
+
+let car      = load('sy_car',     {name:'My Car',year:2020,emoji:'🚗',odometer:25000});
+let parts    = load('sy_parts',   DEFAULT_PARTS);
+let history  = load('sy_history', []);
+let expenses = load('sy_expenses',{});
+let isDark   = load('sy_dark',    true);
+let hFilter  = 'all';
+let curPartId= null;
+
+// ══════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════
+window.addEventListener('DOMContentLoaded',()=>{
+  applyTheme();
+  if(load('sy_logged',false)) showApp();
+  setupMonths();
+  document.getElementById('newOdo').value = car.odometer;
+});
+
+function applyTheme(){
+  const on=!isDark;
+  document.documentElement.classList.toggle('light',on);
+  const btn=document.getElementById('darkToggle');
+  if(btn) btn.textContent = isDark?'☀️':'🌙';
+}
+function toggleDark(){ isDark=!isDark; save('sy_dark',isDark); applyTheme(); }
+
+function handleLogin(){
+  const val=document.getElementById('loginInput').value.trim();
+  if(!val){showToast('Please enter your phone or email','error');return;}
+  const name=document.getElementById('nameInput').value.trim();
+  if(name){ car.name=name+"'s Car"; save('sy_car',car); }
+  save('sy_logged',true);
+  showApp();
+}
+function showApp(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('mainApp').style.display='flex';
+  renderAll();
+}
+function renderAll(){ renderHeader();renderGarage();renderCatalog();renderHistory();renderExpenses(); }
+
+// ══════════════════════════════════════════
+//  HEADER
+// ══════════════════════════════════════════
+function renderHeader(){
+  document.getElementById('headerCarName').textContent=car.emoji+' '+car.name;
+  document.getElementById('headerOdo').textContent=fmt(car.odometer);
+}
+
+// ══════════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════════
+function switchTab(id,btn){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='expensesScreen') renderExpenses();
+}
+
+// ══════════════════════════════════════════
+//  GARAGE
+// ══════════════════════════════════════════
+function renderGarage(){
+  document.getElementById('carCardContainer').innerHTML=`
+    <div class="car-card ani">
+      <span class="cc-emoji">${car.emoji}</span>
+      <div class="cc-eyebrow">Your Vehicle</div>
+      <div class="cc-name">${car.name}</div>
+      <span class="cc-year">${car.year}</span>
+      <div class="cc-divider"></div>
+      <div class="cc-odo-label">Current Odometer</div>
+      <div class="cc-odo-row">
+        <div class="cc-odo-val">${fmt(car.odometer)}</div>
+        <div class="cc-odo-unit">km</div>
+      </div>
+      <div class="cc-actions">
+        <button class="cc-btn" onclick="openEditCar()">✏️ Edit Details</button>
+        <button class="cc-btn" onclick="openModal('odoModal')">🔢 Update KM</button>
+      </div>
+    </div>`;
+
+  const urg=parts.filter(p=>calcLife(p)<15).length;
+  const att=parts.filter(p=>{const l=calcLife(p);return l>=15&&l<30;}).length;
+  const tot=history.reduce((s,h)=>s+(h.cost||0),0);
+
+  document.getElementById('statsGrid').innerHTML=`
+    <div class="stat-card s-red clickable" onclick="showPartsModal('urgent')">
+      <div class="stat-icon-ring si-red">⚠️</div>
+      <div class="stat-val c-red">${urg}</div>
+      <div class="stat-label">Urgent Parts</div>
+      <div class="stat-hint sh-red">Tap to view →</div>
+    </div>
+    <div class="stat-card s-amber clickable" onclick="showPartsModal('attention')">
+      <div class="stat-icon-ring si-amber">🔔</div>
+      <div class="stat-val c-amber">${att}</div>
+      <div class="stat-label">Need Attention</div>
+      <div class="stat-hint sh-amber">Tap to view →</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon-ring si-blue">📋</div>
+      <div class="stat-val">${history.length}</div>
+      <div class="stat-label">Services Done</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon-ring si-gold">💰</div>
+      <div class="stat-val" style="font-size:20px">${fmt(tot)}</div>
+      <div class="stat-label">Total Spent (EGP)</div>
+    </div>`;
+}
+
+// ══════════════════════════════════════════
+//  CATALOG
+// ══════════════════════════════════════════
+function calcLife(p){ return Math.max(0,Math.min(100,((p.intervalKM-(car.odometer-p.lastReplacedKM))/p.intervalKM)*100)); }
+function calcExpiry(p){ const d=new Date(p.lastReplacedDate); d.setMonth(d.getMonth()+p.intervalMonths); return d.toISOString().split('T')[0]; }
+function calcRemKM(p){ return Math.max(0,p.intervalKM-(car.odometer-p.lastReplacedKM)); }
+
+function renderCatalog(){
+  const list=document.getElementById('partsList');
+  if(!parts.length){list.innerHTML='<div class="empty"><div class="empty-ico">🔧</div><div class="empty-txt">No parts in catalog. Use the developer panel to add some.</div></div>';return;}
+  list.innerHTML=parts.map(p=>{
+    const life=calcLife(p), remKM=calcRemKM(p), expiry=calcExpiry(p);
+    const bc=life<15?'bg-crit':life<30?'bg-warn':'bg-good';
+    const bt=life<15?'Critical':life<30?'Soon':'Good';
+    const cc=life<15?'urgent':life<30?'warning':'';
+    return `<div class="part-card ${cc} ani" onclick="openDetail('${p.id}')">
+      <div class="part-hdr">
+        <div class="part-name">${p.name}</div>
+        <span class="part-badge ${bc}">${bt}</span>
+      </div>
+      <div class="part-body">
+        <div>${svg(life,56)}</div>
+        <div class="part-info">
+          <div class="part-row"><span class="pr-lbl">Remaining</span><span class="pr-val" style="color:${life<15?'var(--red)':life<30?'var(--amber)':'var(--green)'};font-family:var(--serif);font-size:14px">${life.toFixed(0)}%</span></div>
+          <div class="part-row"><span class="pr-lbl">KM left</span><span class="pr-val">${fmt(remKM)} km</span></div>
+          <div class="part-row"><span class="pr-lbl">Due date</span><span class="pr-val">${expiry}</span></div>
+          <div class="part-row"><span class="pr-lbl">Interval</span><span class="pr-val">${fmt(p.intervalKM)} km</span></div>
+        </div>
+      </div>
+      <button class="replace-btn ${life<15?'crit':''}" onclick="event.stopPropagation();openReplaceModal('${p.id}')">✅ Mark as Replaced</button>
+    </div>`;
+  }).join('');
+}
+
+function svg(pct,size=80,fs='11'){
+  const r=(size-10)/2, circ=2*Math.PI*r, off=circ*(1-pct/100);
+  const c=pct<15?'var(--red)':pct<30?'var(--amber)':'var(--green)';
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" class="circ-svg">
+    <circle class="circ-bg" cx="${size/2}" cy="${size/2}" r="${r}"/>
+    <circle class="circ-fg" cx="${size/2}" cy="${size/2}" r="${r}" stroke="${c}" stroke-dasharray="${circ}" stroke-dashoffset="${off}"/>
+    <text class="circ-txt" x="${size/2}" y="${size/2+4}" text-anchor="middle" fill="${c}" font-size="${fs}" font-weight="700">${pct.toFixed(0)}%</text>
+  </svg>`;
+}
+
+// ══════════════════════════════════════════
+//  PART DETAIL
+// ══════════════════════════════════════════
+function openDetail(id){
+  curPartId=id;
+  const p=parts.find(x=>x.id===id);
+  const life=calcLife(p), remKM=calcRemKM(p), expiry=calcExpiry(p);
+  document.getElementById('detailPartName').textContent=p.name;
+  document.getElementById('detailCircle').innerHTML=svg(life,160,'18');
+  document.getElementById('detailGrid').innerHTML=`
+    <div class="d-stat"><div class="ds-lbl">Remaining Life</div><div class="ds-val" style="color:${life<15?'var(--red)':life<30?'var(--amber)':'var(--green)'}">${life.toFixed(1)}%</div></div>
+    <div class="d-stat"><div class="ds-lbl">KM Remaining</div><div class="ds-val">${fmt(remKM)} km</div></div>
+    <div class="d-stat"><div class="ds-lbl">Due Date</div><div class="ds-val">${expiry}</div></div>
+    <div class="d-stat"><div class="ds-lbl">Interval</div><div class="ds-val">${fmt(p.intervalKM)} km</div></div>
+    <div class="d-stat"><div class="ds-lbl">Last Replaced</div><div class="ds-val">${p.lastReplacedDate}</div></div>
+    <div class="d-stat"><div class="ds-lbl">Replaced at KM</div><div class="ds-val">${fmt(p.lastReplacedKM)}</div></div>`;
+  const tips=(TIPS[p.name])||['Check this component regularly.','Follow manufacturer recommendations.','Keep records of all replacements.'];
+  document.getElementById('detailTips').innerHTML=`
+    <div class="tips-hdr">💡 Maintenance Tips</div>
+    ${tips.map(t=>`<div class="tip-line">${t}</div>`).join('')}`;
+  document.getElementById('detailReplaceBtn').onclick=()=>openReplaceModal(id);
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('partDetailScreen').classList.add('active');
+}
+function closePartDetail(){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('catalogScreen').classList.add('active');
+}
+
+// ══════════════════════════════════════════
+//  PARTS ALERT MODAL
+// ══════════════════════════════════════════
+function showPartsModal(type){
+  const isUrgent=type==='urgent';
+  const filtered=parts.filter(p=>{const l=calcLife(p);return isUrgent?l<15:(l>=15&&l<30);}).sort((a,b)=>calcLife(a)-calcLife(b));
+  document.getElementById('partsAlertIcon').textContent=isUrgent?'⚠️':'🔔';
+  document.getElementById('partsAlertTitle').textContent=isUrgent?'Urgent Parts':'Need Attention';
+  if(!filtered.length){
+    document.getElementById('partsAlertList').innerHTML=`<div style="text-align:center;padding:28px 0;color:var(--txt3);font-size:14px">${isUrgent?'✅ No urgent parts right now!':'✅ All parts are in good shape!'}</div>`;
+  } else {
+    const ac=isUrgent?'var(--red)':'var(--amber)';
+    const bg=isUrgent?'var(--red-a)':'var(--amber-a)';
+    const bd=isUrgent?'rgba(255,92,122,.2)':'rgba(245,158,11,.2)';
+    document.getElementById('partsAlertList').innerHTML=filtered.map(p=>{
+      const life=calcLife(p),remKM=calcRemKM(p);
+      return `<div style="background:${bg};border:1px solid ${bd};border-radius:var(--r-sm);padding:14px;margin-bottom:10px;display:flex;align-items:center;gap:12px">
+        <div style="flex-shrink:0">${svg(life,52,'10')}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:700;color:var(--txt);margin-bottom:4px">${p.name}</div>
+          <div style="font-size:12px;color:${ac};font-weight:700">${fmt(remKM)} km remaining</div>
+          <div style="font-size:10px;color:var(--txt3);margin-top:3px;text-transform:uppercase;letter-spacing:.5px">Due: ${calcExpiry(p)}</div>
+        </div>
+        <button onclick="closeModal('partsAlertModal');openReplaceModal('${p.id}')" style="flex-shrink:0;padding:9px 12px;border-radius:var(--r-xs);border:none;background:${ac};color:${isUrgent?'white':'#080B14'};font-family:var(--sans);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.3px">Replace</button>
+      </div>`;
+    }).join('');
+  }
+  openModal('partsAlertModal');
+}
+
+// ══════════════════════════════════════════
+//  HISTORY
+// ══════════════════════════════════════════
+function setFilter(f){
+  hFilter=f;
+  document.getElementById('filterAll').classList.toggle('active',f==='all');
+  document.getElementById('filterUrgent').classList.toggle('active',f==='urgent');
+  renderHistory();
+}
+function renderHistory(){
+  const tl=document.getElementById('historyTimeline');
+  let recs=[...history].sort((a,b)=>b.date.localeCompare(a.date));
+  if(hFilter==='urgent') recs=recs.filter(r=>r.urgent);
+  if(!recs.length){tl.innerHTML='<div class="empty"><div class="empty-ico">🕐</div><div class="empty-txt">No records yet. Services will appear here after marking parts as replaced.</div></div>';return;}
+  tl.innerHTML=recs.map(r=>`
+    <div class="tl-item ${r.urgent?'urgent-rec':''}">
+      <div class="tl-service">${r.urgent?'🚨':'🔧'} ${r.service}</div>
+      <div class="tl-meta">
+        <span>📅 ${r.date}</span>
+        <span>📍 ${fmt(r.mileage)} km</span>
+        <span>💰 ${fmt(r.cost)} EGP</span>
+      </div>
+      <div class="tl-actions">
+        <button class="tl-edit" onclick="openEditHistory('${r.id}')">✏️ Edit</button>
+        <button class="tl-del"  onclick="deleteHistory('${r.id}')">🗑 Delete</button>
+      </div>
+    </div>`).join('');
+}
+function saveUrgentRecord(){
+  const service=document.getElementById('urgentService').value.trim();
+  const date=document.getElementById('urgentDate').value;
+  const mileage=parseInt(document.getElementById('urgentMileage').value)||car.odometer;
+  const cost=parseFloat(document.getElementById('urgentCost').value)||0;
+  if(!service||!date){showToast('Please fill in all required fields','error');return;}
+  history.push({id:uid(),date,mileage,service,cost,urgent:true});
+  save('sy_history',history);
+  if(cost>0) addMaintExpense(cost,service,date);
+  closeModal('urgentModal');
+  renderHistory();renderGarage();renderExpenses();
+  showToast('Urgent record added','success');
+  document.getElementById('urgentService').value='';
+  document.getElementById('urgentMileage').value='';
+  document.getElementById('urgentCost').value='';
+}
+function openEditHistory(id){
+  const r=history.find(x=>x.id===id);
+  document.getElementById('editHistoryId').value=id;
+  document.getElementById('editHistoryService').value=r.service;
+  document.getElementById('editHistoryDate').value=r.date;
+  document.getElementById('editHistoryMileage').value=r.mileage;
+  document.getElementById('editHistoryCost').value=r.cost;
+  openModal('editHistoryModal');
+}
+function saveHistoryEdit(){
+  const id=document.getElementById('editHistoryId').value;
+  const idx=history.findIndex(x=>x.id===id);
+  history[idx]={...history[idx],service:document.getElementById('editHistoryService').value,date:document.getElementById('editHistoryDate').value,mileage:parseInt(document.getElementById('editHistoryMileage').value)||0,cost:parseFloat(document.getElementById('editHistoryCost').value)||0};
+  save('sy_history',history);
+  closeModal('editHistoryModal');
+  renderHistory();
+  showToast('Record updated','success');
+}
+function deleteHistory(id){
+  showConfirm('Delete Record?','This maintenance record will be permanently removed.',()=>{
+    history=history.filter(x=>x.id!==id);
+    save('sy_history',history);
+    renderHistory();renderGarage();
+    showToast('Record deleted','success');
+  });
+}
+function exportPDF(){
+  showToast('Generating report…','info');
+  setTimeout(()=>{
+    const lines=[`SYANATY – Maintenance Report`,`Generated: ${new Date().toLocaleDateString()}`,`Car: ${car.name} (${car.year})`,`Odometer: ${fmt(car.odometer)} km`,``,`MAINTENANCE HISTORY:`,...history.map(r=>`${r.date} | ${r.service} | ${fmt(r.mileage)} km | ${fmt(r.cost)} EGP${r.urgent?' [URGENT]':''}`)];
+    const blob=new Blob([lines.join('\n')],{type:'text/plain'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='syanaty_report.txt'; a.click();
+    showToast('Report downloaded!','success');
+  },600);
+}
+
+// ══════════════════════════════════════════
+//  EXPENSES
+// ══════════════════════════════════════════
+function setupMonths(){
+  const sel=document.getElementById('monthSelector');
+  const now=new Date();
+  for(let i=0;i<12;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const lbl=d.toLocaleDateString('en-US',{month:'long',year:'numeric'});
+    const opt=document.createElement('option');
+    opt.value=key; opt.textContent=lbl;
+    if(i===0) opt.selected=true;
+    sel.appendChild(opt);
+  }
+}
+function renderExpenses(){
+  const month=document.getElementById('monthSelector').value;
+  const data=expenses[month]||{fuel:0,maintenance:0,entries:[]};
+  document.getElementById('fuelTotal').textContent=fmt(data.fuel);
+  document.getElementById('maintTotal').textContent=fmt(data.maintenance);
+  document.getElementById('monthTotal').textContent=`${fmt(data.fuel+data.maintenance)} EGP`;
+  const list=document.getElementById('transactionList');
+  if(!data.entries.length){list.innerHTML='<div class="empty" style="padding:32px 0"><div class="empty-ico">💳</div><div class="empty-txt">No transactions this month</div></div>';return;}
+  list.innerHTML=[...data.entries].reverse().map(e=>`
+    <div class="txn-item">
+      <div class="txn-left">
+        <div class="txn-name">${e.type==='fuel'?'⛽':'🔧'} ${e.note||(e.type==='fuel'?'Fuel':'Maintenance')}</div>
+        <div class="txn-date">${e.date}</div>
+      </div>
+      <div class="txn-amt ${e.type==='fuel'?'ta-fuel':'ta-maint'}">${fmt(e.amount)} EGP</div>
+    </div>`).join('');
+}
+function saveFuelExpense(){
+  const amount=parseFloat(document.getElementById('fuelAmount').value);
+  const note=document.getElementById('fuelNote').value.trim()||'Fuel';
+  const date=document.getElementById('fuelDate').value||ds();
+  if(!amount||amount<=0){showToast('Enter a valid amount','error');return;}
+  const month=date.substring(0,7);
+  if(!expenses[month]) expenses[month]={fuel:0,maintenance:0,entries:[]};
+  expenses[month].fuel+=amount;
+  expenses[month].entries.push({type:'fuel',amount,note,date});
+  save('sy_expenses',expenses);
+  closeModal('fuelModal');renderExpenses();
+  showToast('Fuel expense added','success');
+  document.getElementById('fuelAmount').value='';document.getElementById('fuelNote').value='';document.getElementById('fuelDate').value='';
+}
+function addMaintExpense(cost,service,date){
+  const month=(date||ds()).substring(0,7);
+  if(!expenses[month]) expenses[month]={fuel:0,maintenance:0,entries:[]};
+  expenses[month].maintenance+=cost;
+  expenses[month].entries.push({type:'maintenance',amount:cost,note:service,date:date||ds()});
+  save('sy_expenses',expenses);
+}
+
+// ══════════════════════════════════════════
+//  CAR DETAILS
+// ══════════════════════════════════════════
+let tempEmoji=car.emoji;
+function openEditCar(){
+  document.getElementById('editCarName').value=car.name;
+  document.getElementById('editCarYear').value=car.year;
+  document.getElementById('selectedEmoji').textContent=car.emoji;
+  tempEmoji=car.emoji;
+  openModal('carModal');
+}
+function selectEmoji(e){ tempEmoji=e; document.getElementById('selectedEmoji').textContent=e; }
+function saveCarDetails(){
+  const name=document.getElementById('editCarName').value.trim();
+  const year=parseInt(document.getElementById('editCarYear').value);
+  if(!name){showToast('Please enter a car name','error');return;}
+  car={...car,name,year:year||car.year,emoji:tempEmoji};
+  save('sy_car',car);closeModal('carModal');renderAll();
+  showToast('Vehicle details updated','success');
+}
+function updateOdometer(){
+  const val=parseInt(document.getElementById('newOdo').value);
+  if(!val||val<0){showToast('Enter a valid odometer reading','error');return;}
+  if(val<car.odometer){showToast('New reading must be higher than current','error');return;}
+  car.odometer=val;save('sy_car',car);closeModal('odoModal');renderAll();
+  showToast('Odometer updated to '+fmt(val)+' km','success');
+}
+
+// ══════════════════════════════════════════
+//  REPLACEMENT
+// ══════════════════════════════════════════
+function openReplaceModal(id){
+  curPartId=id;
+  const p=parts.find(x=>x.id===id);
+  document.getElementById('replacePartName').textContent='🔧 '+p.name;
+  document.getElementById('replaceDate').value=ds();
+  document.getElementById('replaceKM').value=car.odometer;
+  document.getElementById('replaceCost').value=p.costNew||'';
+  openModal('replaceModal');
+}
+function confirmReplacement(){
+  const date=document.getElementById('replaceDate').value;
+  const km=parseInt(document.getElementById('replaceKM').value);
+  const cost=parseFloat(document.getElementById('replaceCost').value)||0;
+  if(!date||!km){showToast('Please fill in all fields','error');return;}
+  const p=parts.find(x=>x.id===curPartId);
+  p.lastReplacedDate=date; p.lastReplacedKM=km;
+  save('sy_parts',parts);
+  if(km>car.odometer){car.odometer=km;save('sy_car',car);}
+  history.push({id:uid(),date,mileage:km,service:p.name+' replaced',cost,urgent:false});
+  save('sy_history',history);
+  addMaintExpense(cost,p.name+' replaced',date);
+  closeModal('replaceModal');renderAll();
+  showToast(p.name+' marked as replaced!','success');
+}
+
+// ══════════════════════════════════════════
+//  DEV PANEL
+// ══════════════════════════════════════════
+function openDevPassword(){ document.getElementById('devPwInput').value=''; openModal('devPwModal'); }
+function checkDevPassword(){
+  if(document.getElementById('devPwInput').value==='12345'){
+    closeModal('devPwModal'); renderDevPanel(); openModal('devModal');
+  } else { showToast('Incorrect password','error'); document.getElementById('devPwInput').value=''; }
+}
+function renderDevPanel(){
+  document.getElementById('devPartsList').innerHTML=parts.map(p=>`
+    <div class="dev-part-item">
+      <div class="dev-pname">${p.name} — ${fmt(p.intervalKM)} km / ${p.intervalMonths} mo</div>
+      <div class="dev-pacts">
+        <button class="dev-edit-btn" onclick="openEditPart('${p.id}')">✏️ Edit</button>
+        <button class="dev-del-btn"  onclick="devDeletePart('${p.id}')">🗑 Delete</button>
+      </div>
+    </div>`).join('');
+}
+function openEditPart(id){
+  const p=parts.find(x=>x.id===id);
+  document.getElementById('editPartId').value=id;
+  document.getElementById('editPartName').value=p.name;
+  document.getElementById('editPartKM').value=p.intervalKM;
+  document.getElementById('editPartMonths').value=p.intervalMonths;
+  document.getElementById('editPartLastKM').value=p.lastReplacedKM;
+  document.getElementById('editPartLastDate').value=p.lastReplacedDate;
+  document.getElementById('editPartCost').value=p.costNew;
+  closeModal('devModal'); openModal('editPartModal');
+}
+function savePartEdit(){
+  const id=document.getElementById('editPartId').value;
+  const idx=parts.findIndex(x=>x.id===id);
+  parts[idx]={...parts[idx],name:document.getElementById('editPartName').value,intervalKM:parseInt(document.getElementById('editPartKM').value)||parts[idx].intervalKM,intervalMonths:parseInt(document.getElementById('editPartMonths').value)||parts[idx].intervalMonths,lastReplacedKM:parseInt(document.getElementById('editPartLastKM').value)||0,lastReplacedDate:document.getElementById('editPartLastDate').value,costNew:parseFloat(document.getElementById('editPartCost').value)||0};
+  save('sy_parts',parts);closeModal('editPartModal');renderCatalog();renderGarage();renderDevPanel();openModal('devModal');
+  showToast('Part updated','success');
+}
+function devDeletePart(id){
+  const p=parts.find(x=>x.id===id);
+  showConfirm('Delete Part?',`Remove "${p.name}" from the catalog?`,()=>{
+    parts=parts.filter(x=>x.id!==id);save('sy_parts',parts);
+    renderCatalog();renderGarage();renderDevPanel();
+    showToast('Part deleted','success');
+  });
+}
+function addNewPart(){
+  const name=document.getElementById('newPartName').value.trim();
+  const km=parseInt(document.getElementById('newPartKM').value);
+  const months=parseInt(document.getElementById('newPartMonths').value);
+  const cost=parseFloat(document.getElementById('newPartCost').value)||0;
+  if(!name||!km||!months){showToast('Fill in name, km, and months','error');return;}
+  parts.push({id:uid(),name,intervalKM:km,intervalMonths:months,lastReplacedKM:0,lastReplacedDate:ds(),costNew:cost});
+  save('sy_parts',parts);
+  ['newPartName','newPartKM','newPartMonths','newPartCost'].forEach(id=>document.getElementById(id).value='');
+  renderCatalog();renderGarage();renderDevPanel();
+  showToast('Part added to catalog','success');
+}
+
+// ══════════════════════════════════════════
+//  MODALS
+// ══════════════════════════════════════════
+function openModal(id){
+  if(id==='urgentModal'){document.getElementById('urgentDate').value=ds();document.getElementById('urgentMileage').value=car.odometer;}
+  if(id==='fuelModal'){document.getElementById('fuelDate').value=ds();}
+  document.getElementById(id).classList.add('open');
+}
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-ov').forEach(o=>{ o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}); });
+
+// ══════════════════════════════════════════
+//  CONFIRM
+// ══════════════════════════════════════════
+let confCb=null;
+function showConfirm(title,msg,cb,icon='⚠️'){
+  document.getElementById('confirmTitle').textContent=title;
+  document.getElementById('confirmMsg').textContent=msg;
+  document.getElementById('confirmIcon').textContent=icon;
+  confCb=cb; document.getElementById('confirmOverlay').classList.add('open');
+}
+function closeConfirm(){ document.getElementById('confirmOverlay').classList.remove('open'); confCb=null; }
+document.getElementById('confirmOkBtn').onclick=()=>{if(confCb)confCb();closeConfirm();};
+document.getElementById('confirmOverlay').addEventListener('click',e=>{if(e.target===document.getElementById('confirmOverlay'))closeConfirm();});
+
+// ══════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════
+let tt;
+function showToast(msg,type='success'){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`show ${type}`;
+  clearTimeout(tt); tt=setTimeout(()=>{t.className='';},2800);
+}
+
+// ══════════════════════════════════════════
+//  UTILS
+// ══════════════════════════════════════════
+function fmt(n){ return Number(n||0).toLocaleString('en-EG'); }
+function uid(){ return 'id'+Date.now()+Math.random().toString(36).slice(2,6); }
+document.getElementById('nameInput').addEventListener('keydown',e=>{if(e.key==='Enter')handleLogin();});
+document.getElementById('loginInput').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('nameInput').focus();});
+</script>
+</body>
+</html>
