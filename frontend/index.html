@@ -26,15 +26,47 @@
   <div class="login-wordmark">SYANATY</div>
   <div class="login-tagline">Smart Car Maintenance</div>
   <div class="login-card">
-    <div class="l-title">Welcome</div>
-    <div class="l-sub">Enter your details to continue</div>
-    <label class="f-label">Phone or Email</label>
-    <input class="f-input" id="loginInput" type="text" placeholder="+20 10x xxxx xxxx" autocomplete="off">
-    <label class="f-label">Your Name</label>
-    <input class="f-input" id="nameInput" type="text" placeholder="e.g. Ahmed">
-    <button class="btn-gold" onclick="handleLogin()">Get Started →</button>
+    <div class="l-title" id="authTitle">Welcome Back</div>
+    <div class="l-sub" id="authSub">Log in to access your garage</div>
+
+    <div id="nameFieldWrap" style="display:none">
+      <label class="f-label">Your Name</label>
+      <input class="f-input" id="nameInput" type="text" placeholder="e.g. Ahmed" autocomplete="name">
+    </div>
+
+    <label class="f-label">Email</label>
+    <input class="f-input" id="emailInput" type="email" placeholder="you@example.com" autocomplete="email">
+
+    <label class="f-label">Password</label>
+    <input class="f-input" id="passwordInput" type="password" placeholder="••••••••" autocomplete="current-password">
+
+    <button class="btn-gold" id="authSubmitBtn" onclick="handleAuthSubmit()">Log In →</button>
+
+    <div id="authError" style="display:none;color:var(--red);font-size:12px;margin-top:12px;text-align:center;line-height:1.6"></div>
+    <div id="authLoading" style="display:none;color:var(--txt3);font-size:12px;margin-top:12px;text-align:center">Please wait…</div>
+
+    <div style="text-align:center;margin-top:18px;font-size:12px;color:var(--txt3)">
+      <span id="authToggleText">Don't have an account?</span>
+      <a href="#" id="authToggleLink" onclick="toggleAuthMode();return false;" style="color:var(--gold);font-weight:600;text-decoration:none;margin-left:4px">Sign Up</a>
+    </div>
   </div>
-  <div class="l-footer">Your data stays on your device · No account needed</div>
+  <div class="l-footer">Your data syncs securely across all your devices</div>
+</div>
+
+<!-- ══ EMAIL CONFIRMATION PENDING ══ -->
+<div id="confirmScreen" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100dvh;padding:32px 28px;background:var(--bg)">
+  <div class="login-emblem">📧</div>
+  <div class="login-wordmark" style="font-size:24px;letter-spacing:4px">CHECK YOUR EMAIL</div>
+  <div class="login-card" style="text-align:center;margin-top:24px">
+    <div class="l-title">Almost there!</div>
+    <div class="l-sub" style="margin-bottom:20px">
+      We sent a confirmation link to<br><strong id="confirmEmailDisplay" style="color:var(--gold2)"></strong>
+    </div>
+    <div style="font-size:13px;color:var(--txt2);line-height:1.7;margin-bottom:20px">
+      Click the link in that email, then come back here and log in.
+    </div>
+    <button class="btn-gold" onclick="showLoginMode()">Back to Log In</button>
+  </div>
 </div>
 
 <!-- ══ MAIN APP ══ -->
@@ -52,6 +84,7 @@
     <div class="hdr-actions">
       <button class="icon-btn" title="Update Odometer" onclick="openModal('odoModal')">🔢</button>
       <button class="icon-btn" title="Toggle Theme" id="darkToggle" onclick="toggleDark()">☀️</button>
+      <button class="icon-btn" title="Log Out" onclick="logout()">🚪</button>
     </div>
   </div>
 
@@ -318,25 +351,9 @@
 
 <script>
 // ══════════════════════════════════════════
-//  DATA
+//  API CONFIG
 // ══════════════════════════════════════════
-const DEFAULT_PARTS = [
-  {id:'p1', name:'Engine Oil',           intervalKM:5000,  intervalMonths:3,  lastReplacedKM:0, lastReplacedDate:ds(-60),  costNew:350},
-  {id:'p2', name:'Oil Filter',           intervalKM:5000,  intervalMonths:3,  lastReplacedKM:0, lastReplacedDate:ds(-60),  costNew:80},
-  {id:'p3', name:'Air Filter',           intervalKM:15000, intervalMonths:12, lastReplacedKM:0, lastReplacedDate:ds(-180), costNew:150},
-  {id:'p4', name:'Cabin Air Filter',     intervalKM:15000, intervalMonths:12, lastReplacedKM:0, lastReplacedDate:ds(-200), costNew:120},
-  {id:'p5', name:'Spark Plugs',          intervalKM:30000, intervalMonths:24, lastReplacedKM:0, lastReplacedDate:ds(-400), costNew:600},
-  {id:'p6', name:'Brake Pads (Front)',   intervalKM:30000, intervalMonths:24, lastReplacedKM:0, lastReplacedDate:ds(-300), costNew:800},
-  {id:'p7', name:'Brake Pads (Rear)',    intervalKM:50000, intervalMonths:36, lastReplacedKM:0, lastReplacedDate:ds(-365), costNew:600},
-  {id:'p8', name:'Timing Belt',          intervalKM:60000, intervalMonths:48, lastReplacedKM:0, lastReplacedDate:ds(-500), costNew:2500},
-  {id:'p9', name:'Coolant',             intervalKM:40000, intervalMonths:24, lastReplacedKM:0, lastReplacedDate:ds(-250), costNew:400},
-  {id:'p10',name:'Transmission Fluid',   intervalKM:60000, intervalMonths:48, lastReplacedKM:0, lastReplacedDate:ds(-600), costNew:900},
-  {id:'p11',name:'Brake Fluid',          intervalKM:40000, intervalMonths:24, lastReplacedKM:0, lastReplacedDate:ds(-300), costNew:250},
-  {id:'p12',name:'Battery',              intervalKM:80000, intervalMonths:48, lastReplacedKM:0, lastReplacedDate:ds(-200), costNew:3000},
-  {id:'p13',name:'Tire Rotation',        intervalKM:10000, intervalMonths:6,  lastReplacedKM:0, lastReplacedDate:ds(-90),  costNew:200},
-  {id:'p14',name:'Wipers',              intervalKM:20000, intervalMonths:12, lastReplacedKM:0, lastReplacedDate:ds(-180), costNew:200},
-  {id:'p15',name:'Power Steering Fluid', intervalKM:50000, intervalMonths:36, lastReplacedKM:0, lastReplacedDate:ds(-400), costNew:300},
-];
+const API_BASE = 'https://momenihab.pythonanywhere.com';
 
 const TIPS = {
   'Engine Oil':          ['Change oil every 5,000 km in Egyptian climate — heat degrades oil faster.','Use full-synthetic for better protection at high temperatures.','Check oil level monthly between changes.'],
@@ -349,29 +366,85 @@ const TIPS = {
   'Timing Belt':         ['Never delay timing belt replacement — failure destroys the engine.','Always replace the water pump and tensioner at the same time.','Record the exact mileage and date of every replacement.'],
 };
 
+const DEFAULT_PARTS_SEED = [
+  {name:'Engine Oil',           interval_km:5000,  interval_months:3,  cost_new:350},
+  {name:'Oil Filter',           interval_km:5000,  interval_months:3,  cost_new:80},
+  {name:'Air Filter',           interval_km:15000, interval_months:12, cost_new:150},
+  {name:'Cabin Air Filter',     interval_km:15000, interval_months:12, cost_new:120},
+  {name:'Spark Plugs',          interval_km:30000, interval_months:24, cost_new:600},
+  {name:'Brake Pads (Front)',   interval_km:30000, interval_months:24, cost_new:800},
+  {name:'Brake Pads (Rear)',    interval_km:50000, interval_months:36, cost_new:600},
+  {name:'Timing Belt',          interval_km:60000, interval_months:48, cost_new:2500},
+  {name:'Coolant',              interval_km:40000, interval_months:24, cost_new:400},
+  {name:'Transmission Fluid',   interval_km:60000, interval_months:48, cost_new:900},
+  {name:'Brake Fluid',          interval_km:40000, interval_months:24, cost_new:250},
+  {name:'Battery',              interval_km:80000, interval_months:48, cost_new:3000},
+  {name:'Tire Rotation',        interval_km:10000, interval_months:6,  cost_new:200},
+  {name:'Wipers',               interval_km:20000, interval_months:12, cost_new:200},
+  {name:'Power Steering Fluid', interval_km:50000, interval_months:36, cost_new:300},
+];
+
 function ds(offset=0) {
   const d=new Date(); d.setDate(d.getDate()+offset);
   return d.toISOString().split('T')[0];
 }
-function load(k,def){ try{const v=localStorage.getItem(k);return v?JSON.parse(v):def}catch{return def} }
-function save(k,v){ localStorage.setItem(k,JSON.stringify(v)); }
 
-let car      = load('sy_car',     {name:'My Car',year:2020,emoji:'🚗',odometer:25000});
-let parts    = load('sy_parts',   DEFAULT_PARTS);
-let history  = load('sy_history', []);
-let expenses = load('sy_expenses',{});
-let isDark   = load('sy_dark',    true);
+// ══════════════════════════════════════════
+//  SESSION (tokens persist so a refresh doesn't log you out;
+//  the actual car/parts/history/expenses data is NOT cached here —
+//  it's re-fetched from the API each login, kept only in memory after that)
+// ══════════════════════════════════════════
+function loadSession(){ try{const v=localStorage.getItem('sy_session');return v?JSON.parse(v):null}catch{return null} }
+function saveSession(s){ localStorage.setItem('sy_session', JSON.stringify(s)); }
+function clearSession(){ localStorage.removeItem('sy_session'); }
+
+let session  = loadSession();          // {access_token, refresh_token, user_id, email}
+let car      = null;
+let parts    = [];
+let history  = [];
+let expenses = {};                     // keyed by "YYYY-MM" -> {fuel, maintenance, entries:[]}
+let isDark   = (localStorage.getItem('sy_dark') !== 'false');  // theme pref can stay local, it's not user data
 let hFilter  = 'all';
 let curPartId= null;
+let authMode = 'login'; // 'login' | 'signup'
+
+// ══════════════════════════════════════════
+//  API CLIENT
+// ══════════════════════════════════════════
+async function api(path, { method='GET', body=null, auth=true } = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (auth) {
+    if (!session?.access_token) throw new Error('Not logged in');
+    headers['Authorization'] = 'Bearer ' + session.access_token;
+  }
+  let res;
+  try {
+    res = await fetch(API_BASE + path, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (e) {
+    throw new Error('Could not reach the server. Check your connection and try again.');
+  }
+  let data;
+  try { data = await res.json(); } catch { data = null; }
+  if (!res.ok) {
+    throw new Error(data?.detail || `Request failed (${res.status})`);
+  }
+  return data;
+}
+
 
 // ══════════════════════════════════════════
 //  BOOT
 // ══════════════════════════════════════════
 window.addEventListener('DOMContentLoaded',()=>{
   applyTheme();
-  if(load('sy_logged',false)) showApp();
   setupMonths();
-  document.getElementById('newOdo').value = car.odometer;
+  if (session?.access_token) {
+    bootApp();
+  }
 });
 
 function applyTheme(){
@@ -380,21 +453,175 @@ function applyTheme(){
   const btn=document.getElementById('darkToggle');
   if(btn) btn.textContent = isDark?'☀️':'🌙';
 }
-function toggleDark(){ isDark=!isDark; save('sy_dark',isDark); applyTheme(); }
+function toggleDark(){ isDark=!isDark; localStorage.setItem('sy_dark', isDark); applyTheme(); }
 
-function handleLogin(){
-  const val=document.getElementById('loginInput').value.trim();
-  if(!val){showToast('Please enter your phone or email','error');return;}
-  const name=document.getElementById('nameInput').value.trim();
-  if(name){ car.name=name+"'s Car"; save('sy_car',car); }
-  save('sy_logged',true);
-  showApp();
+// ══════════════════════════════════════════
+//  AUTH — SIGNUP / LOGIN
+// ══════════════════════════════════════════
+function toggleAuthMode(){
+  authMode = authMode === 'login' ? 'signup' : 'login';
+  document.getElementById('nameFieldWrap').style.display = authMode === 'signup' ? 'block' : 'none';
+  document.getElementById('authTitle').textContent = authMode === 'signup' ? 'Create Account' : 'Welcome Back';
+  document.getElementById('authSub').textContent = authMode === 'signup' ? 'Sign up to start tracking' : 'Log in to access your garage';
+  document.getElementById('authSubmitBtn').textContent = authMode === 'signup' ? 'Sign Up →' : 'Log In →';
+  document.getElementById('authToggleText').textContent = authMode === 'signup' ? 'Already have an account?' : "Don't have an account?";
+  document.getElementById('authToggleLink').textContent = authMode === 'signup' ? 'Log In' : 'Sign Up';
+  hideAuthError();
 }
-function showApp(){
+function showLoginMode(){
+  document.getElementById('confirmScreen').style.display='none';
+  document.getElementById('loginScreen').style.display='flex';
+  if (authMode !== 'login') toggleAuthMode();
+}
+function hideAuthError(){ document.getElementById('authError').style.display='none'; }
+function showAuthError(msg){
+  const el=document.getElementById('authError');
+  el.textContent = msg; el.style.display='block';
+}
+function setAuthLoading(on){
+  document.getElementById('authLoading').style.display = on ? 'block' : 'none';
+  document.getElementById('authSubmitBtn').style.display = on ? 'none' : 'block';
+}
+
+async function handleAuthSubmit(){
+  hideAuthError();
+  const email = document.getElementById('emailInput').value.trim();
+  const password = document.getElementById('passwordInput').value;
+  if (!email || !password) { showAuthError('Please enter both email and password.'); return; }
+
+  if (authMode === 'signup') {
+    const name = document.getElementById('nameInput').value.trim();
+    if (!name) { showAuthError('Please enter your name.'); return; }
+    setAuthLoading(true);
+    try {
+      const result = await api('/auth/signup', { auth:false, method:'POST', body:{ email, password, name } });
+      setAuthLoading(false);
+      if (result.access_token) {
+        // Email confirmation not required on this Supabase project — log straight in
+        session = { access_token: result.access_token, refresh_token: result.refresh_token, user_id: result.user_id, email: result.email };
+        saveSession(session);
+        await seedDefaultParts(); // first-time setup
+        await bootApp();
+      } else {
+        // Email confirmation required — show the pending screen
+        document.getElementById('confirmEmailDisplay').textContent = email;
+        document.getElementById('loginScreen').style.display='none';
+        document.getElementById('confirmScreen').style.display='flex';
+      }
+    } catch (e) {
+      setAuthLoading(false);
+      showAuthError(e.message);
+    }
+  } else {
+    setAuthLoading(true);
+    try {
+      const result = await api('/auth/login', { auth:false, method:'POST', body:{ email, password } });
+      setAuthLoading(false);
+      session = { access_token: result.access_token, refresh_token: result.refresh_token, user_id: result.user_id, email: result.email };
+      saveSession(session);
+      await bootApp();
+    } catch (e) {
+      setAuthLoading(false);
+      showAuthError(e.message);
+    }
+  }
+}
+
+function logout(){
+  showConfirm('Log Out?', 'You can log back in anytime — your data stays safely in the cloud.', () => {
+    session = null; clearSession();
+    car = null; parts = []; history = []; expenses = {};
+    document.getElementById('mainApp').style.display='none';
+    document.getElementById('confirmScreen').style.display='none';
+    document.getElementById('loginScreen').style.display='flex';
+    document.getElementById('emailInput').value='';
+    document.getElementById('passwordInput').value='';
+  }, '👋');
+}
+
+// Seeds the default 15-part catalog for a brand-new account (one-time, after first signup)
+async function seedDefaultParts(){
+  try {
+    const cars = await api('/cars');
+    const myCar = cars[0];
+    if (!myCar) return;
+    for (const p of DEFAULT_PARTS_SEED) {
+      await api('/parts', { method:'POST', body:{
+        car_id: myCar.id,
+        name: p.name,
+        interval_km: p.interval_km,
+        interval_months: p.interval_months,
+        last_replaced_km: 0,
+        last_replaced_date: ds(-30),
+        cost_new: p.cost_new,
+      }});
+    }
+  } catch (e) {
+    console.error('Seeding default parts failed:', e);
+  }
+}
+
+// ══════════════════════════════════════════
+//  APP BOOT — loads all data fresh from the API, then shows the app
+// ══════════════════════════════════════════
+async function bootApp(){
   document.getElementById('loginScreen').style.display='none';
-  document.getElementById('mainApp').style.display='flex';
-  renderAll();
+  document.getElementById('confirmScreen').style.display='none';
+  try {
+    const cars = await api('/cars');
+    if (!cars.length) {
+      // Edge case: account exists but has no car yet (shouldn't normally happen)
+      const created = await api('/cars', { method:'POST', body:{ name:'My Car', year:2020, emoji:'🚗', odometer:0 } });
+      car = created;
+      await seedDefaultParts();
+    } else {
+      car = cars[0];
+    }
+    await Promise.all([ loadParts(), loadHistory() ]);
+    document.getElementById('mainApp').style.display='flex';
+    renderAll();
+  } catch (e) {
+    showToast(e.message || 'Could not load your data. Please try again.', 'error');
+    // If the token is bad/expired, send back to login
+    if (String(e.message).toLowerCase().includes('expired') || String(e.message).toLowerCase().includes('invalid')) {
+      session = null; clearSession();
+      document.getElementById('loginScreen').style.display='flex';
+    }
+  }
 }
+
+async function loadParts(){
+  const raw = await api(`/parts?car_id=${car.id}`);
+  parts = raw.map(fromApiPart);
+}
+async function loadHistory(){
+  const raw = await api(`/history?car_id=${car.id}`);
+  history = raw.map(fromApiHistory);
+}
+async function loadExpensesForMonth(month){
+  const raw = await api(`/expenses?car_id=${car.id}&month=${month}`);
+  const entries = raw.map(fromApiExpense);
+  const fuel = entries.filter(e=>e.type==='fuel').reduce((s,e)=>s+e.amount,0);
+  const maintenance = entries.filter(e=>e.type==='maintenance').reduce((s,e)=>s+e.amount,0);
+  expenses[month] = { fuel, maintenance, entries };
+}
+
+// ── snake_case (API) <-> camelCase (frontend) translation ──
+function fromApiPart(p){
+  return {
+    id: p.id, name: p.name,
+    intervalKM: p.interval_km, intervalMonths: p.interval_months,
+    lastReplacedKM: p.last_replaced_km, lastReplacedDate: p.last_replaced_date,
+    costNew: Number(p.cost_new),
+  };
+}
+function fromApiHistory(h){
+  return { id:h.id, date:h.date, mileage:h.mileage, service:h.service, cost:Number(h.cost), urgent:h.urgent };
+}
+function fromApiExpense(e){
+  return { id:e.id, type:e.type, amount:Number(e.amount), note:e.note, date:e.date };
+}
+
 function renderAll(){ renderHeader();renderGarage();renderCatalog();renderHistory();renderExpenses(); }
 
 // ══════════════════════════════════════════
@@ -598,21 +825,23 @@ function renderHistory(){
       </div>
     </div>`).join('');
 }
-function saveUrgentRecord(){
+async function saveUrgentRecord(){
   const service=document.getElementById('urgentService').value.trim();
   const date=document.getElementById('urgentDate').value;
   const mileage=parseInt(document.getElementById('urgentMileage').value)||car.odometer;
   const cost=parseFloat(document.getElementById('urgentCost').value)||0;
   if(!service||!date){showToast('Please fill in all required fields','error');return;}
-  history.push({id:uid(),date,mileage,service,cost,urgent:true});
-  save('sy_history',history);
-  if(cost>0) addMaintExpense(cost,service,date);
-  closeModal('urgentModal');
-  renderHistory();renderGarage();renderExpenses();
-  showToast('Urgent record added','success');
-  document.getElementById('urgentService').value='';
-  document.getElementById('urgentMileage').value='';
-  document.getElementById('urgentCost').value='';
+  try{
+    const rec = await api('/history', { method:'POST', body:{ car_id:car.id, date, mileage, service, cost, urgent:true } });
+    history.unshift(fromApiHistory(rec));
+    if(cost>0) await addMaintExpense(cost,service,date);
+    closeModal('urgentModal');
+    renderHistory();renderGarage();renderExpenses();
+    showToast('Urgent record added','success');
+    document.getElementById('urgentService').value='';
+    document.getElementById('urgentMileage').value='';
+    document.getElementById('urgentCost').value='';
+  }catch(e){ showToast(e.message,'error'); }
 }
 function openEditHistory(id){
   const r=history.find(x=>x.id===id);
@@ -623,21 +852,31 @@ function openEditHistory(id){
   document.getElementById('editHistoryCost').value=r.cost;
   openModal('editHistoryModal');
 }
-function saveHistoryEdit(){
+async function saveHistoryEdit(){
   const id=document.getElementById('editHistoryId').value;
   const idx=history.findIndex(x=>x.id===id);
-  history[idx]={...history[idx],service:document.getElementById('editHistoryService').value,date:document.getElementById('editHistoryDate').value,mileage:parseInt(document.getElementById('editHistoryMileage').value)||0,cost:parseFloat(document.getElementById('editHistoryCost').value)||0};
-  save('sy_history',history);
-  closeModal('editHistoryModal');
-  renderHistory();
-  showToast('Record updated','success');
+  const updates={
+    service:document.getElementById('editHistoryService').value,
+    date:document.getElementById('editHistoryDate').value,
+    mileage:parseInt(document.getElementById('editHistoryMileage').value)||0,
+    cost:parseFloat(document.getElementById('editHistoryCost').value)||0,
+  };
+  try{
+    await api(`/history/${id}`, { method:'PATCH', body:updates });
+    history[idx]={...history[idx],...updates};
+    closeModal('editHistoryModal');
+    renderHistory();
+    showToast('Record updated','success');
+  }catch(e){ showToast(e.message,'error'); }
 }
 function deleteHistory(id){
-  showConfirm('Delete Record?','This maintenance record will be permanently removed.',()=>{
-    history=history.filter(x=>x.id!==id);
-    save('sy_history',history);
-    renderHistory();renderGarage();
-    showToast('Record deleted','success');
+  showConfirm('Delete Record?','This maintenance record will be permanently removed.',async()=>{
+    try{
+      await api(`/history/${id}`, { method:'DELETE' });
+      history=history.filter(x=>x.id!==id);
+      renderHistory();renderGarage();
+      showToast('Record deleted','success');
+    }catch(e){ showToast(e.message,'error'); }
   });
 }
 function exportPDF(){
@@ -666,8 +905,12 @@ function setupMonths(){
     sel.appendChild(opt);
   }
 }
-function renderExpenses(){
+async function renderExpenses(){
   const month=document.getElementById('monthSelector').value;
+  if(!expenses[month]){
+    try{ await loadExpensesForMonth(month); }
+    catch(e){ showToast(e.message,'error'); return; }
+  }
   const data=expenses[month]||{fuel:0,maintenance:0,entries:[]};
   document.getElementById('fuelTotal').textContent=fmt(data.fuel);
   document.getElementById('maintTotal').textContent=fmt(data.maintenance);
@@ -683,32 +926,31 @@ function renderExpenses(){
       <div class="txn-amt ${e.type==='fuel'?'ta-fuel':'ta-maint'}">${fmt(e.amount)} EGP</div>
     </div>`).join('');
 }
-function saveFuelExpense(){
+async function saveFuelExpense(){
   const amount=parseFloat(document.getElementById('fuelAmount').value);
   const note=document.getElementById('fuelNote').value.trim()||'Fuel';
   const date=document.getElementById('fuelDate').value||ds();
   if(!amount||amount<=0){showToast('Enter a valid amount','error');return;}
-  const month=date.substring(0,7);
-  if(!expenses[month]) expenses[month]={fuel:0,maintenance:0,entries:[]};
-  expenses[month].fuel+=amount;
-  expenses[month].entries.push({type:'fuel',amount,note,date});
-  save('sy_expenses',expenses);
-  closeModal('fuelModal');renderExpenses();
-  showToast('Fuel expense added','success');
-  document.getElementById('fuelAmount').value='';document.getElementById('fuelNote').value='';document.getElementById('fuelDate').value='';
+  try{
+    await api('/expenses', { method:'POST', body:{ car_id:car.id, type:'fuel', amount, note, date } });
+    const month=date.substring(0,7);
+    delete expenses[month]; // force refetch so totals stay accurate
+    closeModal('fuelModal');
+    if(document.getElementById('monthSelector').value===month) await renderExpenses();
+    showToast('Fuel expense added','success');
+    document.getElementById('fuelAmount').value='';document.getElementById('fuelNote').value='';document.getElementById('fuelDate').value='';
+  }catch(e){ showToast(e.message,'error'); }
 }
-function addMaintExpense(cost,service,date){
-  const month=(date||ds()).substring(0,7);
-  if(!expenses[month]) expenses[month]={fuel:0,maintenance:0,entries:[]};
-  expenses[month].maintenance+=cost;
-  expenses[month].entries.push({type:'maintenance',amount:cost,note:service,date:date||ds()});
-  save('sy_expenses',expenses);
+async function addMaintExpense(cost,service,date){
+  const d = date||ds();
+  await api('/expenses', { method:'POST', body:{ car_id:car.id, type:'maintenance', amount:cost, note:service, date:d } });
+  delete expenses[d.substring(0,7)]; // force refetch so totals stay accurate
 }
 
 // ══════════════════════════════════════════
 //  CAR DETAILS
 // ══════════════════════════════════════════
-let tempEmoji=car.emoji;
+let tempEmoji='🚗';
 function openEditCar(){
   document.getElementById('editCarName').value=car.name;
   document.getElementById('editCarYear').value=car.year;
@@ -717,20 +959,27 @@ function openEditCar(){
   openModal('carModal');
 }
 function selectEmoji(e){ tempEmoji=e; document.getElementById('selectedEmoji').textContent=e; }
-function saveCarDetails(){
+async function saveCarDetails(){
   const name=document.getElementById('editCarName').value.trim();
   const year=parseInt(document.getElementById('editCarYear').value);
   if(!name){showToast('Please enter a car name','error');return;}
-  car={...car,name,year:year||car.year,emoji:tempEmoji};
-  save('sy_car',car);closeModal('carModal');renderAll();
-  showToast('Vehicle details updated','success');
+  try{
+    const updated = await api(`/cars/${car.id}`, { method:'PATCH', body:{ name, year:year||car.year, emoji:tempEmoji } });
+    car = { ...car, name:updated.name, year:updated.year, emoji:updated.emoji };
+    closeModal('carModal');renderAll();
+    showToast('Vehicle details updated','success');
+  }catch(e){ showToast(e.message,'error'); }
 }
-function updateOdometer(){
+async function updateOdometer(){
   const val=parseInt(document.getElementById('newOdo').value);
   if(!val||val<0){showToast('Enter a valid odometer reading','error');return;}
   if(val<car.odometer){showToast('New reading must be higher than current','error');return;}
-  car.odometer=val;save('sy_car',car);closeModal('odoModal');renderAll();
-  showToast('Odometer updated to '+fmt(val)+' km','success');
+  try{
+    const updated = await api(`/cars/${car.id}`, { method:'PATCH', body:{ odometer:val } });
+    car.odometer = updated.odometer;
+    closeModal('odoModal');renderAll();
+    showToast('Odometer updated to '+fmt(val)+' km','success');
+  }catch(e){ showToast(e.message,'error'); }
 }
 
 // ══════════════════════════════════════════
@@ -745,20 +994,29 @@ function openReplaceModal(id){
   document.getElementById('replaceCost').value=p.costNew||'';
   openModal('replaceModal');
 }
-function confirmReplacement(){
+async function confirmReplacement(){
   const date=document.getElementById('replaceDate').value;
   const km=parseInt(document.getElementById('replaceKM').value);
   const cost=parseFloat(document.getElementById('replaceCost').value)||0;
   if(!date||!km){showToast('Please fill in all fields','error');return;}
   const p=parts.find(x=>x.id===curPartId);
-  p.lastReplacedDate=date; p.lastReplacedKM=km;
-  save('sy_parts',parts);
-  if(km>car.odometer){car.odometer=km;save('sy_car',car);}
-  history.push({id:uid(),date,mileage:km,service:p.name+' replaced',cost,urgent:false});
-  save('sy_history',history);
-  addMaintExpense(cost,p.name+' replaced',date);
-  closeModal('replaceModal');renderAll();
-  showToast(p.name+' marked as replaced!','success');
+  try{
+    await api(`/parts/${p.id}`, { method:'PATCH', body:{ last_replaced_date:date, last_replaced_km:km } });
+    p.lastReplacedDate=date; p.lastReplacedKM=km;
+
+    if(km>car.odometer){
+      await api(`/cars/${car.id}`, { method:'PATCH', body:{ odometer:km } });
+      car.odometer=km;
+    }
+
+    const rec = await api('/history', { method:'POST', body:{ car_id:car.id, date, mileage:km, service:p.name+' replaced', cost, urgent:false } });
+    history.unshift(fromApiHistory(rec));
+
+    if(cost>0) await addMaintExpense(cost,p.name+' replaced',date);
+
+    closeModal('replaceModal');renderAll();
+    showToast(p.name+' marked as replaced!','success');
+  }catch(e){ showToast(e.message,'error'); }
 }
 
 // ══════════════════════════════════════════
@@ -780,7 +1038,7 @@ function renderDevPanel(){
       </div>
     </div>`).join('');
 }
-function openEditPart(id){
+async function openEditPart(id){
   const p=parts.find(x=>x.id===id);
   document.getElementById('editPartId').value=id;
   document.getElementById('editPartName').value=p.name;
@@ -791,32 +1049,51 @@ function openEditPart(id){
   document.getElementById('editPartCost').value=p.costNew;
   closeModal('devModal'); openModal('editPartModal');
 }
-function savePartEdit(){
+async function savePartEdit(){
   const id=document.getElementById('editPartId').value;
   const idx=parts.findIndex(x=>x.id===id);
-  parts[idx]={...parts[idx],name:document.getElementById('editPartName').value,intervalKM:parseInt(document.getElementById('editPartKM').value)||parts[idx].intervalKM,intervalMonths:parseInt(document.getElementById('editPartMonths').value)||parts[idx].intervalMonths,lastReplacedKM:parseInt(document.getElementById('editPartLastKM').value)||0,lastReplacedDate:document.getElementById('editPartLastDate').value,costNew:parseFloat(document.getElementById('editPartCost').value)||0};
-  save('sy_parts',parts);closeModal('editPartModal');renderCatalog();renderGarage();renderDevPanel();openModal('devModal');
-  showToast('Part updated','success');
+  const updates={
+    name:document.getElementById('editPartName').value,
+    interval_km:parseInt(document.getElementById('editPartKM').value)||parts[idx].intervalKM,
+    interval_months:parseInt(document.getElementById('editPartMonths').value)||parts[idx].intervalMonths,
+    last_replaced_km:parseInt(document.getElementById('editPartLastKM').value)||0,
+    last_replaced_date:document.getElementById('editPartLastDate').value,
+    cost_new:parseFloat(document.getElementById('editPartCost').value)||0,
+  };
+  try{
+    await api(`/parts/${id}`, { method:'PATCH', body:updates });
+    parts[idx]=fromApiPart({ id, ...updates });
+    closeModal('editPartModal');renderCatalog();renderGarage();renderDevPanel();openModal('devModal');
+    showToast('Part updated','success');
+  }catch(e){ showToast(e.message,'error'); }
 }
 function devDeletePart(id){
   const p=parts.find(x=>x.id===id);
-  showConfirm('Delete Part?',`Remove "${p.name}" from the catalog?`,()=>{
-    parts=parts.filter(x=>x.id!==id);save('sy_parts',parts);
-    renderCatalog();renderGarage();renderDevPanel();
-    showToast('Part deleted','success');
+  showConfirm('Delete Part?',`Remove "${p.name}" from the catalog?`,async()=>{
+    try{
+      await api(`/parts/${id}`, { method:'DELETE' });
+      parts=parts.filter(x=>x.id!==id);
+      renderCatalog();renderGarage();renderDevPanel();
+      showToast('Part deleted','success');
+    }catch(e){ showToast(e.message,'error'); }
   });
 }
-function addNewPart(){
+async function addNewPart(){
   const name=document.getElementById('newPartName').value.trim();
   const km=parseInt(document.getElementById('newPartKM').value);
   const months=parseInt(document.getElementById('newPartMonths').value);
   const cost=parseFloat(document.getElementById('newPartCost').value)||0;
   if(!name||!km||!months){showToast('Fill in name, km, and months','error');return;}
-  parts.push({id:uid(),name,intervalKM:km,intervalMonths:months,lastReplacedKM:0,lastReplacedDate:ds(),costNew:cost});
-  save('sy_parts',parts);
-  ['newPartName','newPartKM','newPartMonths','newPartCost'].forEach(id=>document.getElementById(id).value='');
-  renderCatalog();renderGarage();renderDevPanel();
-  showToast('Part added to catalog','success');
+  try{
+    const created = await api('/parts', { method:'POST', body:{
+      car_id:car.id, name, interval_km:km, interval_months:months,
+      last_replaced_km:0, last_replaced_date:ds(), cost_new:cost,
+    }});
+    parts.push(fromApiPart(created));
+    ['newPartName','newPartKM','newPartMonths','newPartCost'].forEach(id=>document.getElementById(id).value='');
+    renderCatalog();renderGarage();renderDevPanel();
+    showToast('Part added to catalog','success');
+  }catch(e){ showToast(e.message,'error'); }
 }
 
 // ══════════════════════════════════════════
@@ -825,6 +1102,7 @@ function addNewPart(){
 function openModal(id){
   if(id==='urgentModal'){document.getElementById('urgentDate').value=ds();document.getElementById('urgentMileage').value=car.odometer;}
   if(id==='fuelModal'){document.getElementById('fuelDate').value=ds();}
+  if(id==='odoModal'){document.getElementById('newOdo').value=car.odometer;}
   document.getElementById(id).classList.add('open');
 }
 function closeModal(id){ document.getElementById(id).classList.remove('open'); }
@@ -858,9 +1136,8 @@ function showToast(msg,type='success'){
 //  UTILS
 // ══════════════════════════════════════════
 function fmt(n){ return Number(n||0).toLocaleString('en-EG'); }
-function uid(){ return 'id'+Date.now()+Math.random().toString(36).slice(2,6); }
-document.getElementById('nameInput').addEventListener('keydown',e=>{if(e.key==='Enter')handleLogin();});
-document.getElementById('loginInput').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('nameInput').focus();});
+document.getElementById('passwordInput').addEventListener('keydown',e=>{if(e.key==='Enter')handleAuthSubmit();});
+document.getElementById('emailInput').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('passwordInput').focus();});
 </script>
 </body>
 </html>
