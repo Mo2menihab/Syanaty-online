@@ -544,10 +544,18 @@ async function seedDefaultParts(){
   if (!car || !car.id) return;
   try {
     for (const p of DEFAULT_PARTS_SEED) {
-      await api('/parts', { method:'POST', body:{...} });
+      await api('/parts', { method:'POST', body:{
+        car_id: car.id,
+        name: p.name,
+        interval_km: p.interval_km,
+        interval_months: p.interval_months,
+        last_replaced_km: 0,
+        last_replaced_date: ds(-30),
+        cost_new: p.cost_new,
+      }});
     }
   } catch (e) {
-    console.error('Seeding default parts failed:', e);  // ← only logs, never shows to user
+    console.error('Seeding default parts failed:', e);
   }
 }
 
