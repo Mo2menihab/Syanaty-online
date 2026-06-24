@@ -500,8 +500,7 @@ async function handleAuthSubmit(){
         // Email confirmation not required on this Supabase project — log straight in
         session = { access_token: result.access_token, refresh_token: result.refresh_token, user_id: result.user_id, email: result.email };
         saveSession(session);
-        await seedDefaultParts(); // first-time setup
-        await bootApp();
+        await bootApp(); // bootApp seeds the default catalog automatically for empty accounts
       } else {
         // Email confirmation required — show the pending screen
         document.getElementById('confirmEmailDisplay').textContent = email;
@@ -539,15 +538,14 @@ function logout(){
   }, '👋');
 }
 
-// Seeds the default 15-part catalog for a brand-new account (one-time, after first signup)
+// Seeds the default 15-part catalog for an account with an empty catalog
+// (brand-new signups, or legacy/manually-created accounts with no parts yet)
 async function seedDefaultParts(){
+  if (!car || !car.id) return;
   try {
-    const cars = await api('/cars');
-    const myCar = cars[0];
-    if (!myCar) return;
     for (const p of DEFAULT_PARTS_SEED) {
       await api('/parts', { method:'POST', body:{
-        car_id: myCar.id,
+        car_id: car.id,
         name: p.name,
         interval_km: p.interval_km,
         interval_months: p.interval_months,
@@ -573,11 +571,19 @@ async function bootApp(){
       // Edge case: account exists but has no car yet (shouldn't normally happen)
       const created = await api('/cars', { method:'POST', body:{ name:'My Car', year:2020, emoji:'🚗', odometer:0 } });
       car = created;
-      await seedDefaultParts();
     } else {
       car = cars[0];
     }
-    await Promise.all([ loadParts(), loadHistory() ]);
+    await loadParts();
+    // Edge case: account/car exists but the parts catalog is empty
+    // (e.g. accounts created before catalog-seeding existed, or the car was
+    // created without going through the normal signup flow). Seed once here
+    // too, so nobody is ever stuck looking at an empty Catalog tab.
+    if (!parts.length) {
+      await seedDefaultParts();
+      await loadParts();
+    }
+    await loadHistory();
     document.getElementById('mainApp').style.display='flex';
     renderAll();
   } catch (e) {
