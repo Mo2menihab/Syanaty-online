@@ -38,7 +38,13 @@
     <input class="f-input" id="emailInput" type="email" placeholder="you@example.com" autocomplete="email">
 
     <label class="f-label">Password</label>
-    <input class="f-input" id="passwordInput" type="password" placeholder="••••••••" autocomplete="current-password">
+    <div style="position:relative">
+      <input class="f-input" id="passwordInput" type="password" placeholder="••••••••" autocomplete="current-password" style="padding-right:44px;width:100%">
+      <button type="button" onclick="togglePassVis()" id="passVisBtn" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:var(--txt3);line-height:1;padding:4px">👁️</button>
+    </div>
+    <div style="text-align:right;margin-top:6px">
+      <a href="#" onclick="showForgotPassword();return false;" style="font-size:11px;color:var(--gold);font-weight:600;text-decoration:none;letter-spacing:.3px">Forgot password?</a>
+    </div>
 
     <button class="btn-gold" id="authSubmitBtn" onclick="handleAuthSubmit()">Log In →</button>
 
@@ -51,6 +57,20 @@
     </div>
   </div>
   <div class="l-footer">Your data syncs securely across all your devices</div>
+</div>
+
+<!-- ══ LOADING OVERLAY ══ -->
+<div id="loadingOverlay" style="display:none;position:fixed;inset:0;z-index:500;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;gap:20px">
+  <div style="position:relative;width:72px;height:72px">
+    <svg viewBox="0 0 72 72" style="width:72px;height:72px;animation:spin 1s linear infinite">
+      <circle cx="36" cy="36" r="28" fill="none" stroke="var(--bdr2)" stroke-width="5"/>
+      <circle cx="36" cy="36" r="28" fill="none" stroke="var(--gold)" stroke-width="5" stroke-linecap="round"
+        stroke-dasharray="50 126" stroke-dashoffset="0"/>
+    </svg>
+    <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:24px">🚗</div>
+  </div>
+  <div style="font-family:var(--serif);font-size:20px;font-weight:600;color:var(--txt)" id="loadingMsg">Loading your garage…</div>
+  <div style="font-size:12px;color:var(--txt3);letter-spacing:.5px">Please wait</div>
 </div>
 
 <!-- ══ EMAIL CONFIRMATION PENDING ══ -->
@@ -106,7 +126,7 @@
           <div class="pg-title">Parts Catalog</div>
           <div class="pg-sub">Replacement interval tracking</div>
         </div>
-        <button class="dev-btn" onclick="openDevPassword()">🛠️</button>
+        <button class="dev-btn" onclick="renderDevPanel();openModal('devModal')" title="Developer Panel">🛠️</button>
       </div>
       <div class="notice-banner">
         <span style="font-size:15px;flex-shrink:0;margin-top:1px">⚠️</span>
@@ -210,12 +230,13 @@
   <div class="modal-field"><label>Year</label><input class="modal-input" id="editCarYear" type="number" placeholder="2020"></div>
   <div class="modal-field">
     <label>Vehicle Icon</label>
-    <div style="display:flex;align-items:center;gap:14px;margin-top:6px">
-      <span id="selectedEmoji" style="font-size:34px">🚗</span>
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
-        ${['🚗','🚙','🚕','🏎️','🚐','🚌','🛻','🚓'].map(e=>`<button onclick="selectEmoji('${e}')" style="font-size:24px;background:none;border:none;cursor:pointer;transition:transform .15s" onmouseover="this.style.transform='scale(1.3)'" onmouseout="this.style.transform='scale(1)'">${e}</button>`).join('')}
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+      <div id="selectedEmojiWrap" style="width:52px;height:52px;border-radius:14px;background:var(--gold-a);border:2px solid var(--gold-b);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <span id="selectedEmoji" style="font-size:30px">🚗</span>
       </div>
+      <div style="font-size:12px;color:var(--txt3);line-height:1.6">Tap any icon below<br>to select your vehicle type</div>
     </div>
+    <div id="iconGrid" style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;max-height:200px;overflow-y:auto;padding:4px 2px"></div>
   </div>
   <div class="modal-actions">
     <button class="btn-ms" onclick="closeModal('carModal')">Cancel</button>
@@ -248,16 +269,7 @@
   </div>
 </div></div>
 
-<!-- MODAL: Dev Password -->
-<div class="modal-ov" id="devPwModal"><div class="modal">
-  <span class="modal-handle"></span>
-  <div class="modal-title">🛠️ Developer Access</div>
-  <div class="modal-field"><label>Password</label><input class="modal-input" id="devPwInput" type="password" placeholder="Enter password"></div>
-  <div class="modal-actions">
-    <button class="btn-ms" onclick="closeModal('devPwModal')">Cancel</button>
-    <button class="btn-mp" onclick="checkDevPassword()">Unlock</button>
-  </div>
-</div></div>
+<!-- Dev Password Modal removed — panel is now open access (item #5) -->
 
 <!-- MODAL: Dev Panel -->
 <div class="modal-ov" id="devModal"><div class="modal">
@@ -367,21 +379,21 @@ const TIPS = {
 };
 
 const DEFAULT_PARTS_SEED = [
-  {name:'Engine Oil',           interval_km:5000,  interval_months:3,  cost_new:350},
-  {name:'Oil Filter',           interval_km:5000,  interval_months:3,  cost_new:80},
-  {name:'Air Filter',           interval_km:15000, interval_months:12, cost_new:150},
-  {name:'Cabin Air Filter',     interval_km:15000, interval_months:12, cost_new:120},
-  {name:'Spark Plugs',          interval_km:30000, interval_months:24, cost_new:600},
-  {name:'Brake Pads (Front)',   interval_km:30000, interval_months:24, cost_new:800},
-  {name:'Brake Pads (Rear)',    interval_km:50000, interval_months:36, cost_new:600},
-  {name:'Timing Belt',          interval_km:60000, interval_months:48, cost_new:2500},
-  {name:'Coolant',              interval_km:40000, interval_months:24, cost_new:400},
-  {name:'Transmission Fluid',   interval_km:60000, interval_months:48, cost_new:900},
-  {name:'Brake Fluid',          interval_km:40000, interval_months:24, cost_new:250},
-  {name:'Battery',              interval_km:80000, interval_months:48, cost_new:3000},
-  {name:'Tire Rotation',        interval_km:10000, interval_months:6,  cost_new:200},
-  {name:'Wipers',               interval_km:20000, interval_months:12, cost_new:200},
-  {name:'Power Steering Fluid', interval_km:50000, interval_months:36, cost_new:300},
+  {name:'Engine Oil (زيت المحرك)',           interval_km:5000,  interval_months:3,  cost_new:350},
+  {name:'Oil Filter (فلتر الزيت)',           interval_km:5000,  interval_months:3,  cost_new:80},
+  {name:'Air Filter (فلتر الهواء)',           interval_km:15000, interval_months:12, cost_new:150},
+  {name:'Cabin Air Filter (فلتر هواء الكابينة)', interval_km:15000, interval_months:12, cost_new:120},
+  {name:'Spark Plugs (شمعات الإشعال)',          interval_km:30000, interval_months:24, cost_new:600},
+  {name:'Brake Pads Front (تيل الفرامل الأمامي)', interval_km:30000, interval_months:24, cost_new:800},
+  {name:'Brake Pads Rear (تيل الفرامل الخلفي)',  interval_km:50000, interval_months:36, cost_new:600},
+  {name:'Timing Belt (سير التايمنج)',          interval_km:60000, interval_months:48, cost_new:2500},
+  {name:'Coolant (سائل التبريد)',              interval_km:40000, interval_months:24, cost_new:400},
+  {name:'Transmission Fluid (زيت الجيربوكس)', interval_km:60000, interval_months:48, cost_new:900},
+  {name:'Brake Fluid (زيت الفرامل)',          interval_km:40000, interval_months:24, cost_new:250},
+  {name:'Battery (بطارية)',              interval_km:80000, interval_months:48, cost_new:3000},
+  {name:'Tire Rotation (تدوير الإطارات)',        interval_km:10000, interval_months:6,  cost_new:200},
+  {name:'Wipers (ماسحات الزجاج)',               interval_km:20000, interval_months:12, cost_new:200},
+  {name:'Power Steering Fluid (زيت الدريكسيون)', interval_km:50000, interval_months:36, cost_new:300},
 ];
 
 function ds(offset=0) {
@@ -565,6 +577,7 @@ async function seedDefaultParts(){
 async function bootApp(){
   document.getElementById('loginScreen').style.display='none';
   document.getElementById('confirmScreen').style.display='none';
+  showLoading('Loading your garage…');
   try {
     const cars = await api('/cars');
     if (!cars.length) {
@@ -584,9 +597,11 @@ async function bootApp(){
       await loadParts();
     }
     await loadHistory();
+    hideLoading();
     document.getElementById('mainApp').style.display='flex';
     renderAll();
   } catch (e) {
+    hideLoading();
     showToast(e.message || 'Could not load your data. Please try again.', 'error');
     // If the token is bad/expired, send back to login
     if (String(e.message).toLowerCase().includes('expired') || String(e.message).toLowerCase().includes('invalid')) {
@@ -734,13 +749,15 @@ function renderCatalog(){
   }).join('');
 }
 
-function svg(pct,size=80,fs='11'){
+function svg(pct,size=80,fs='13'){
   const r=(size-10)/2, circ=2*Math.PI*r, off=circ*(1-pct/100);
   const c=pct<15?'var(--red)':pct<30?'var(--amber)':'var(--green)';
+  // Auto-scale font size for small circles
+  const autoFs = size < 60 ? '12' : size < 100 ? fs : '20';
   return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" class="circ-svg">
     <circle class="circ-bg" cx="${size/2}" cy="${size/2}" r="${r}"/>
     <circle class="circ-fg" cx="${size/2}" cy="${size/2}" r="${r}" stroke="${c}" stroke-dasharray="${circ}" stroke-dashoffset="${off}"/>
-    <text class="circ-txt" x="${size/2}" y="${size/2+4}" text-anchor="middle" fill="${c}" font-size="${fs}" font-weight="700">${pct.toFixed(0)}%</text>
+    <text class="circ-txt" x="${size/2}" y="${size/2+5}" text-anchor="middle" fill="${c}" font-size="${autoFs}" font-weight="800">${pct.toFixed(0)}%</text>
   </svg>`;
 }
 
@@ -963,6 +980,7 @@ function openEditCar(){
   document.getElementById('selectedEmoji').textContent=car.emoji;
   tempEmoji=car.emoji;
   openModal('carModal');
+  setTimeout(()=>{ buildIconGrid(); selectEmoji(car.emoji); }, 50);
 }
 function selectEmoji(e){ tempEmoji=e; document.getElementById('selectedEmoji').textContent=e; }
 async function saveCarDetails(){
@@ -1028,12 +1046,7 @@ async function confirmReplacement(){
 // ══════════════════════════════════════════
 //  DEV PANEL
 // ══════════════════════════════════════════
-function openDevPassword(){ document.getElementById('devPwInput').value=''; openModal('devPwModal'); }
-function checkDevPassword(){
-  if(document.getElementById('devPwInput').value==='12345'){
-    closeModal('devPwModal'); renderDevPanel(); openModal('devModal');
-  } else { showToast('Incorrect password','error'); document.getElementById('devPwInput').value=''; }
-}
+// #5 — Dev panel password removed; panel opens directly via the 🛠️ button
 function renderDevPanel(){
   document.getElementById('devPartsList').innerHTML=parts.map(p=>`
     <div class="dev-part-item">
@@ -1141,6 +1154,93 @@ function showToast(msg,type='success'){
 // ══════════════════════════════════════════
 //  UTILS
 // ══════════════════════════════════════════
+
+// ══════════════════════════════════════════
+//  #9 — PASSWORD VISIBILITY TOGGLE
+// ══════════════════════════════════════════
+function togglePassVis(){
+  const inp = document.getElementById('passwordInput');
+  const btn = document.getElementById('passVisBtn');
+  if(inp.type === 'password'){ inp.type='text'; btn.textContent='🙈'; }
+  else { inp.type='password'; btn.textContent='👁️'; }
+}
+
+// ══════════════════════════════════════════
+//  #10 — LOADING OVERLAY
+// ══════════════════════════════════════════
+function showLoading(msg='Loading your garage…'){
+  const ov = document.getElementById('loadingOverlay');
+  document.getElementById('loadingMsg').textContent = msg;
+  ov.style.display = 'flex';
+}
+function hideLoading(){
+  document.getElementById('loadingOverlay').style.display = 'none';
+}
+
+// ══════════════════════════════════════════
+//  #3/#8 — CAR ICON GRID
+// ══════════════════════════════════════════
+const CAR_ICONS = [
+  // Sedans & Hatchbacks
+  {e:'🚗', label:'Sedan'},
+  {e:'🚙', label:'SUV'},
+  {e:'🚕', label:'Taxi'},
+  {e:'🏎️', label:'Sports'},
+  {e:'🚓', label:'Police'},
+  {e:'🚑', label:'Ambulance'},
+  {e:'🚒', label:'Fire'},
+  {e:'🛻', label:'Pickup'},
+  {e:'🚐', label:'Van'},
+  {e:'🚌', label:'Bus'},
+  {e:'🚎', label:'Trolley'},
+  {e:'🚂', label:'Train'},
+  {e:'🚁', label:'Heli'},
+  {e:'⛵', label:'Boat'},
+  {e:'🛵', label:'Scooter'},
+  {e:'🏍️', label:'Bike'},
+  {e:'🚜', label:'Tractor'},
+  {e:'🚛', label:'Truck'},
+  {e:'🛺', label:'Tuk-tuk'},
+  {e:'🚤', label:'Speed Boat'},
+  {e:'✈️', label:'Plane'},
+  {e:'🚀', label:'Rocket'},
+  {e:'🛸', label:'UFO'},
+  {e:'🐪', label:'Camel'},
+];
+
+function buildIconGrid(){
+  const grid = document.getElementById('iconGrid');
+  if(!grid) return;
+  grid.innerHTML = CAR_ICONS.map(({e,label}) => `
+    <button type="button" class="icon-grid-btn" onclick="selectEmoji('${e}')" title="${label}">
+      <span style="font-size:26px;line-height:1">${e}</span>
+      <span style="font-size:9px;color:var(--txt3);margin-top:3px;font-weight:600;letter-spacing:.3px">${label}</span>
+    </button>`).join('');
+}
+
+function selectEmoji(e){
+  tempEmoji = e;
+  const el = document.getElementById('selectedEmoji');
+  if(el) el.textContent = e;
+  // highlight selected
+  document.querySelectorAll('.icon-grid-btn').forEach(btn => {
+    btn.style.background = btn.querySelector('span').textContent === e
+      ? 'var(--gold-a)' : 'var(--surf2)';
+    btn.style.borderColor = btn.querySelector('span').textContent === e
+      ? 'var(--gold)' : 'var(--bdr)';
+  });
+}
+
+// ══════════════════════════════════════════
+//  #2 — FORGOT PASSWORD (UI only — backend item)
+// ══════════════════════════════════════════
+function showForgotPassword(){
+  const email = document.getElementById('emailInput').value.trim();
+  showToast(email
+    ? 'Password reset — coming soon! (backend item #2)'
+    : 'Enter your email first, then tap Forgot password', 'info');
+}
+
 function fmt(n){ return Number(n||0).toLocaleString('en-EG'); }
 document.getElementById('passwordInput').addEventListener('keydown',e=>{if(e.key==='Enter')handleAuthSubmit();});
 document.getElementById('emailInput').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('passwordInput').focus();});
