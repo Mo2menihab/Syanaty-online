@@ -89,6 +89,63 @@
   </div>
 </div>
 
+<!-- ══ FORGOT PASSWORD ══ -->
+<div id="forgotScreen" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100dvh;padding:32px 28px;background:var(--bg)">
+  <div class="login-emblem">🔑</div>
+  <div class="login-wordmark" style="font-size:22px;letter-spacing:4px">RESET PASSWORD</div>
+  <div class="login-tagline">We'll send you a reset link</div>
+  <div class="login-card">
+    <div class="l-title">Forgot your password?</div>
+    <div class="l-sub">Enter your email and we'll send you a link to reset it</div>
+    <label class="f-label">Email Address</label>
+    <input class="f-input" id="forgotEmailInput" type="email" placeholder="you@example.com" autocomplete="email">
+    <div id="forgotError" style="display:none;color:var(--red);font-size:12px;margin-bottom:12px;line-height:1.6"></div>
+    <button class="btn-gold" id="forgotBtn" onclick="handleForgotPassword()">Send Reset Link →</button>
+    <div style="text-align:center;margin-top:16px">
+      <a href="#" onclick="showLoginMode();return false;" style="font-size:12px;color:var(--txt3);text-decoration:none">← Back to Log In</a>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FORGOT PASSWORD SENT ══ -->
+<div id="forgotSentScreen" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100dvh;padding:32px 28px;background:var(--bg)">
+  <div class="login-emblem">📬</div>
+  <div class="login-wordmark" style="font-size:22px;letter-spacing:4px">CHECK EMAIL</div>
+  <div class="login-card" style="text-align:center;margin-top:24px">
+    <div class="l-title">Reset link sent!</div>
+    <div class="l-sub" style="margin-bottom:16px">
+      We sent a password reset link to<br>
+      <strong id="forgotEmailDisplay" style="color:var(--gold2)"></strong>
+    </div>
+    <div style="font-size:13px;color:var(--txt2);line-height:1.7;margin-bottom:20px;background:var(--surf2);border-radius:var(--r-xs);padding:14px">
+      📧 Click the link in that email<br>
+      🔑 You'll be brought back here to set a new password<br>
+      ⏱ The link expires in 1 hour
+    </div>
+    <button class="btn-gold" onclick="showLoginMode()">Back to Log In</button>
+  </div>
+</div>
+
+<!-- ══ RESET PASSWORD ══ -->
+<div id="resetScreen" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:100dvh;padding:32px 28px;background:var(--bg)">
+  <div class="login-emblem">🔐</div>
+  <div class="login-wordmark" style="font-size:22px;letter-spacing:4px">NEW PASSWORD</div>
+  <div class="login-tagline">Choose a strong password</div>
+  <div class="login-card">
+    <div class="l-title">Set new password</div>
+    <div class="l-sub">Enter your new password below</div>
+    <label class="f-label">New Password</label>
+    <div style="position:relative">
+      <input class="f-input" id="resetPasswordInput" type="password" placeholder="At least 6 characters" style="padding-right:44px;width:100%">
+      <button type="button" onclick="toggleResetPassVis()" id="resetPassBtn" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:18px;color:var(--txt3);line-height:1;padding:4px">👁️</button>
+    </div>
+    <label class="f-label" style="margin-top:12px">Confirm Password</label>
+    <input class="f-input" id="resetConfirmInput" type="password" placeholder="Repeat new password">
+    <div id="resetError" style="display:none;color:var(--red);font-size:12px;margin-top:8px;margin-bottom:8px;line-height:1.6"></div>
+    <button class="btn-gold" id="resetBtn" onclick="handleResetPassword()" style="margin-top:12px">Set New Password →</button>
+  </div>
+</div>
+
 <!-- ══ MAIN APP ══ -->
 <div id="mainApp" style="display:none;flex-direction:column;height:100%;position:relative;overflow:hidden;">
 
@@ -278,6 +335,9 @@
     <div class="modal-title" style="margin-bottom:0">🛠️ Developer Panel</div>
     <button class="icon-btn" onclick="closeModal('devModal')">✕</button>
   </div>
+  <button onclick="syncArabicNames()" style="width:100%;padding:11px;border-radius:var(--r-xs);border:1px solid rgba(201,168,76,.3);background:var(--gold-a);color:var(--gold2);font-family:var(--sans);font-size:12px;font-weight:700;cursor:pointer;margin-bottom:16px;letter-spacing:.3px" >
+    🌐 Sync Arabic Names to All Parts
+  </button>
   <div id="devPartsList"></div>
   <div class="add-part-sec">
     <h3>Add New Part</h3>
@@ -454,8 +514,11 @@ async function api(path, { method='GET', body=null, auth=true } = {}) {
 window.addEventListener('DOMContentLoaded',()=>{
   applyTheme();
   setupMonths();
-  if (session?.access_token) {
-    bootApp();
+  checkForResetToken(); // check if user arrived via password-reset email link
+  if(!document.getElementById('resetScreen').style.display || document.getElementById('resetScreen').style.display === 'none'){
+    if (session?.access_token) {
+      bootApp();
+    }
   }
 });
 
@@ -481,7 +544,8 @@ function toggleAuthMode(){
   hideAuthError();
 }
 function showLoginMode(){
-  document.getElementById('confirmScreen').style.display='none';
+  ['confirmScreen','forgotScreen','forgotSentScreen','resetScreen']
+    .forEach(id => { const el=document.getElementById(id); if(el) el.style.display='none'; });
   document.getElementById('loginScreen').style.display='flex';
   if (authMode !== 'login') toggleAuthMode();
 }
@@ -982,28 +1046,29 @@ function openEditCar(){
   openModal('carModal');
   setTimeout(()=>{ buildIconGrid(); selectEmoji(car.emoji); }, 50);
 }
-function selectEmoji(e){ tempEmoji=e; document.getElementById('selectedEmoji').textContent=e; }
 async function saveCarDetails(){
   const name=document.getElementById('editCarName').value.trim();
   const year=parseInt(document.getElementById('editCarYear').value);
   if(!name){showToast('Please enter a car name','error');return;}
+  closeModal('carModal'); showLoading('Saving vehicle…');
   try{
     const updated = await api(`/cars/${car.id}`, { method:'PATCH', body:{ name, year:year||car.year, emoji:tempEmoji } });
     car = { ...car, name:updated.name, year:updated.year, emoji:updated.emoji };
-    closeModal('carModal');renderAll();
+    hideLoading(); renderAll();
     showToast('Vehicle details updated','success');
-  }catch(e){ showToast(e.message,'error'); }
+  }catch(e){ hideLoading(); showToast(e.message,'error'); }
 }
 async function updateOdometer(){
   const val=parseInt(document.getElementById('newOdo').value);
   if(!val||val<0){showToast('Enter a valid odometer reading','error');return;}
   if(val<car.odometer){showToast('New reading must be higher than current','error');return;}
+  closeModal('odoModal'); showLoading('Updating odometer…');
   try{
     const updated = await api(`/cars/${car.id}`, { method:'PATCH', body:{ odometer:val } });
     car.odometer = updated.odometer;
-    closeModal('odoModal');renderAll();
+    hideLoading(); renderAll();
     showToast('Odometer updated to '+fmt(val)+' km','success');
-  }catch(e){ showToast(e.message,'error'); }
+  }catch(e){ hideLoading(); showToast(e.message,'error'); }
 }
 
 // ══════════════════════════════════════════
@@ -1024,6 +1089,8 @@ async function confirmReplacement(){
   const cost=parseFloat(document.getElementById('replaceCost').value)||0;
   if(!date||!km){showToast('Please fill in all fields','error');return;}
   const p=parts.find(x=>x.id===curPartId);
+  closeModal('replaceModal');
+  showLoading('Saving replacement…');
   try{
     await api(`/parts/${p.id}`, { method:'PATCH', body:{ last_replaced_date:date, last_replaced_km:km } });
     p.lastReplacedDate=date; p.lastReplacedKM=km;
@@ -1038,15 +1105,51 @@ async function confirmReplacement(){
 
     if(cost>0) await addMaintExpense(cost,p.name+' replaced',date);
 
-    closeModal('replaceModal');renderAll();
+    hideLoading(); renderAll();
     showToast(p.name+' marked as replaced!','success');
-  }catch(e){ showToast(e.message,'error'); }
+  }catch(e){ hideLoading(); showToast(e.message,'error'); }
 }
 
 // ══════════════════════════════════════════
 //  DEV PANEL
 // ══════════════════════════════════════════
 // #5 — Dev panel password removed; panel opens directly via the 🛠️ button
+
+const ARABIC_NAMES = {
+  'Engine Oil': 'Engine Oil (زيت المحرك)',
+  'Oil Filter': 'Oil Filter (فلتر الزيت)',
+  'Air Filter': 'Air Filter (فلتر الهواء)',
+  'Cabin Air Filter': 'Cabin Air Filter (فلتر هواء الكابينة)',
+  'Spark Plugs': 'Spark Plugs (شمعات الإشعال)',
+  'Brake Pads (Front)': 'Brake Pads Front (تيل الفرامل الأمامي)',
+  'Brake Pads (Rear)': 'Brake Pads Rear (تيل الفرامل الخلفي)',
+  'Timing Belt': 'Timing Belt (سير التايمنج)',
+  'Coolant': 'Coolant (سائل التبريد)',
+  'Transmission Fluid': 'Transmission Fluid (زيت الجيربوكس)',
+  'Brake Fluid': 'Brake Fluid (زيت الفرامل)',
+  'Battery': 'Battery (بطارية)',
+  'Tire Rotation': 'Tire Rotation (تدوير الإطارات)',
+  'Wipers': 'Wipers (ماسحات الزجاج)',
+  'Power Steering Fluid': 'Power Steering Fluid (زيت الدريكسيون)',
+};
+
+async function syncArabicNames(){
+  let updated=0, skipped=0;
+  showLoading('Syncing Arabic names…');
+  try{
+    for(const p of parts){
+      const arabic = ARABIC_NAMES[p.name];
+      if(arabic && arabic !== p.name){
+        await api(`/parts/${p.id}`, { method:'PATCH', body:{ name: arabic } });
+        p.name = arabic;
+        updated++;
+      } else { skipped++; }
+    }
+    await loadParts();
+    hideLoading(); renderAll();
+    showToast(`Updated ${updated} parts, ${skipped} already current`, 'success');
+  }catch(e){ hideLoading(); showToast(e.message,'error'); }
+}
 function renderDevPanel(){
   document.getElementById('devPartsList').innerHTML=parts.map(p=>`
     <div class="dev-part-item">
@@ -1232,13 +1335,121 @@ function selectEmoji(e){
 }
 
 // ══════════════════════════════════════════
-//  #2 — FORGOT PASSWORD (UI only — backend item)
+//  #2 — FORGOT / RESET PASSWORD
 // ══════════════════════════════════════════
+
 function showForgotPassword(){
-  const email = document.getElementById('emailInput').value.trim();
-  showToast(email
-    ? 'Password reset — coming soon! (backend item #2)'
-    : 'Enter your email first, then tap Forgot password', 'info');
+  hideAllAuthScreens();
+  const el = document.getElementById('forgotScreen');
+  el.style.display = 'flex';
+  document.getElementById('forgotEmailInput').value =
+    document.getElementById('emailInput').value || '';
+  document.getElementById('forgotError').style.display = 'none';
+}
+
+function hideAllAuthScreens(){
+  ['loginScreen','confirmScreen','forgotScreen','forgotSentScreen','resetScreen']
+    .forEach(id => {
+      const el = document.getElementById(id);
+      if(el) el.style.display = 'none';
+    });
+}
+
+async function handleForgotPassword(){
+  const email = document.getElementById('forgotEmailInput').value.trim();
+  const errEl = document.getElementById('forgotError');
+  errEl.style.display = 'none';
+
+  if(!email){ errEl.textContent = 'Please enter your email address'; errEl.style.display='block'; return; }
+
+  const btn = document.getElementById('forgotBtn');
+  btn.disabled = true; btn.textContent = 'Sending…';
+
+  try{
+    // Tell Supabase where to redirect after the user clicks the reset link
+    const redirectUrl = window.location.origin + window.location.pathname;
+    await fetch(`${API_BASE}/auth/forgot-password`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ email, redirect_url: redirectUrl })
+    });
+    // Always show success regardless (prevents user enumeration)
+    document.getElementById('forgotEmailDisplay').textContent = email;
+    hideAllAuthScreens();
+    document.getElementById('forgotSentScreen').style.display = 'flex';
+  } catch(e){
+    errEl.textContent = 'Something went wrong. Please try again.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Send Reset Link →';
+  }
+}
+
+function toggleResetPassVis(){
+  const inp = document.getElementById('resetPasswordInput');
+  const btn = document.getElementById('resetPassBtn');
+  if(inp.type==='password'){ inp.type='text'; btn.textContent='🙈'; }
+  else { inp.type='password'; btn.textContent='👁️'; }
+}
+
+async function handleResetPassword(){
+  const password = document.getElementById('resetPasswordInput').value;
+  const confirm  = document.getElementById('resetConfirmInput').value;
+  const errEl    = document.getElementById('resetError');
+  errEl.style.display = 'none';
+
+  if(password.length < 6){
+    errEl.textContent = 'Password must be at least 6 characters';
+    errEl.style.display = 'block'; return;
+  }
+  if(password !== confirm){
+    errEl.textContent = 'Passwords do not match';
+    errEl.style.display = 'block'; return;
+  }
+
+  const btn = document.getElementById('resetBtn');
+  btn.disabled = true; btn.textContent = 'Saving…';
+  showLoading('Updating your password…');
+
+  try{
+    // access_token was extracted from the URL hash when the page loaded
+    const token = window._resetToken;
+    const res = await fetch(`${API_BASE}/auth/reset-password`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ access_token: token, new_password: password })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.detail || 'Reset failed');
+
+    hideLoading();
+    showToast('Password updated! Please log in.', 'success');
+    // Clear the reset token from URL without reloading the page
+    history.replaceState(null,'', window.location.pathname);
+    window._resetToken = null;
+    showLoginMode();
+  } catch(e){
+    hideLoading();
+    errEl.textContent = e.message || 'Reset failed. The link may have expired.';
+    errEl.style.display = 'block';
+  } finally {
+    btn.disabled = false; btn.textContent = 'Set New Password →';
+  }
+}
+
+// Check on page load whether the URL contains a Supabase reset token
+// (Supabase redirects back with #access_token=...&type=recovery in the URL hash)
+function checkForResetToken(){
+  const hash = window.location.hash;
+  if(!hash) return;
+  const params = new URLSearchParams(hash.replace('#',''));
+  const type   = params.get('type');
+  const token  = params.get('access_token');
+  if(type === 'recovery' && token){
+    window._resetToken = token;
+    hideAllAuthScreens();
+    document.getElementById('resetScreen').style.display = 'flex';
+  }
 }
 
 function fmt(n){ return Number(n||0).toLocaleString('en-EG'); }
